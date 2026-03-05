@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileJson, Palette, Info, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import type { BriefingOutput, DesignTokens, OptionalSkillId } from '../../types';
 import { OPTIONAL_SKILLS } from '../../types';
@@ -13,6 +13,12 @@ interface Props {
   onGenerate: () => void;
   isGenerating: boolean;
   error: string | null;
+}
+
+// Safely serialise to pretty JSON or return empty string
+function toText(val: unknown): string {
+  if (!val) return '';
+  try { return JSON.stringify(val, null, 2); } catch { return ''; }
 }
 
 const BRIEFING_PLACEHOLDER = JSON.stringify(
@@ -58,6 +64,8 @@ function parseJSON<T>(text: string): T | null {
 }
 
 export default function InputPanel({
+  briefing,
+  tokens,
   activeSkills,
   onBriefingChange,
   onTokensChange,
@@ -66,8 +74,17 @@ export default function InputPanel({
   isGenerating,
   error,
 }: Props) {
-  const [briefingText, setBriefingText] = useState('');
-  const [tokensText, setTokensText] = useState('');
+  const [briefingText, setBriefingText] = useState(() => toText(briefing));
+  const [tokensText, setTokensText] = useState(() => toText(tokens));
+
+  // Sync when URL params arrive after mount (pipeline integration)
+  useEffect(() => {
+    if (briefing && !briefingText) setBriefingText(toText(briefing));
+  }, [briefing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tokens && !tokensText) setTokensText(toText(tokens));
+  }, [tokens]); // eslint-disable-line react-hooks/exhaustive-deps
   const [tokensOpen, setTokensOpen] = useState(true);
   const [briefingOpen, setBriefingOpen] = useState(true);
 

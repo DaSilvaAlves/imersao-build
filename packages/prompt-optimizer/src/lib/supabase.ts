@@ -1,0 +1,50 @@
+import { createClient } from '@supabase/supabase-js';
+import type { BriefingOutput, DesignTokens } from '../types';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+export interface BriefingRecord {
+  project_name: string;
+  pain_points: string;
+  features: string[];
+  target_audience: string;
+  experience_level: string;
+  suggested_stack: Record<string, string>;
+  ui_vibe: string;
+  prd_text: string;
+  design_tokens: DesignTokens | null;
+}
+
+export const saveBriefingOutput = async (
+  briefing: BriefingOutput,
+  tokens: DesignTokens | null
+): Promise<string | null> => {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('briefing_outputs')
+      .insert([{
+        project_name:    briefing.projectName,
+        pain_points:     briefing.painPoints,
+        features:        briefing.features,
+        target_audience: briefing.targetAudience,
+        experience_level: briefing.experienceLevel,
+        suggested_stack: briefing.suggestedStack,
+        ui_vibe:         briefing.uiVibe,
+        prd_text:        briefing.prdText,
+        design_tokens:   tokens,
+      }])
+      .select('id')
+      .single();
+    if (error) { console.error('[Supabase] save briefing:', error.message); return null; }
+    return data?.id ?? null;
+  } catch (err) {
+    console.error('[Supabase] saveBriefingOutput failed:', err);
+    return null;
+  }
+};

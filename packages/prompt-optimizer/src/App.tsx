@@ -4,6 +4,7 @@ import InputPanel from './features/input-panel/InputPanel';
 import PreviewPanel from './features/preview-panel/PreviewPanel';
 import { detectBoost, buildPrompt } from './features/prompt-builder/PromptBuilder';
 import type { BriefingOutput, DesignTokens, GeneratedPrompt, OptionalSkillId } from './types';
+import { saveBriefingOutput } from './lib/supabase';
 
 const COMPILER_URL = 'http://localhost:5194';
 
@@ -60,6 +61,8 @@ export default function App() {
       setPrompt(generated);
       setIsGenerating(false);
       setActivePanel('preview');
+      // Persist to Supabase (fire-and-forget)
+      void saveBriefingOutput(briefing, tokens);
     }, 600);
   }, [briefing, tokens, activeSkills]);
 
