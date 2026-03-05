@@ -18,7 +18,6 @@ export interface CompilerConfig {
   repoDescription: string;
   repoPrivate: boolean;
   useGroqValidation: boolean;
-  groqApiKey: string;
 }
 
 export interface GeneratedFile {

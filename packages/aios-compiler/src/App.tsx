@@ -74,7 +74,9 @@ export default function App() {
   }
 
   const handleGenerate = useCallback(async () => {
-    if (!state.config.geminiApiKey || !state.prompt) return;
+    const activeProvider = state.config.aiProvider ?? 'gemini';
+    const requiredKey = activeProvider === 'groq' ? state.config.groqApiKey : state.config.geminiApiKey;
+    if (!requiredKey || !state.prompt) return;
     update({ isLoading: true, error: null, streamingOutput: '', step: 3 });
 
     try {
@@ -376,7 +378,7 @@ export default function App() {
               <button
                 className="btn-primary"
                 onClick={handleGenerate}
-                disabled={!config.geminiApiKey}
+                disabled={(config.aiProvider ?? 'gemini') === 'groq' ? !config.groqApiKey : !config.geminiApiKey}
               >
                 🚀 Gerar Código
               </button>

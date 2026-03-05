@@ -68,6 +68,31 @@ CREATE TABLE IF NOT EXISTS imersao_progress (
 );
 
 -- ----------------------------------------------------------------
+-- BRIEFING OUTPUTS — Dados persistidos pelo Prompt Optimizer
+-- ----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS briefing_outputs (
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_name     TEXT NOT NULL,
+  pain_points      TEXT,
+  features         TEXT[],
+  target_audience  TEXT,
+  experience_level TEXT,
+  suggested_stack  JSONB,
+  ui_vibe          TEXT,
+  prd_text         TEXT,
+  design_tokens    JSONB,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE briefing_outputs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "public_read_briefings"
+  ON briefing_outputs FOR SELECT USING (true);
+
+CREATE POLICY "public_insert_briefings"
+  ON briefing_outputs FOR INSERT WITH CHECK (true);
+
+-- ----------------------------------------------------------------
 -- INDEXES para performance
 -- ----------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_members_imersao ON imersao_members(imersao_num);
@@ -99,8 +124,15 @@ CREATE POLICY "mentor_read_all_progress"
     )
   );
 
--- Insert/Update protegido pelo service_role (sem auth publica por agora)
--- Para MVP: usar service_role key no backend/serverless
+-- Insert público para MVP (community, sem auth)
+CREATE POLICY "public_insert_projects"
+  ON imersao_projects FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "public_insert_members"
+  ON imersao_members FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "public_insert_progress"
+  ON imersao_progress FOR INSERT WITH CHECK (true);
 
 -- ----------------------------------------------------------------
 -- SEED DATA — Dados de demonstração
