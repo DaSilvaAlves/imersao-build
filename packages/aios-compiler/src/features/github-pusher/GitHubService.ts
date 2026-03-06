@@ -125,6 +125,7 @@ function buildScaffold(repoName: string): Array<{ path: string; content: string 
     },
     dependencies: {
       'lucide-react': '^0.469.0',
+      motion: '^11.15.0',
       react: '^19.0.0',
       'react-dom': '^19.0.0',
     },
