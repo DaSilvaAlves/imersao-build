@@ -79,6 +79,16 @@ export default function App() {
     if (!requiredKey || !state.prompt) return;
     update({ isLoading: true, error: null, streamingOutput: '', step: 3 });
 
+    // Auto-verificar token GitHub se ainda não verificado
+    if (state.config.githubToken && !githubUser) {
+      try {
+        const user = await getAuthenticatedUser(state.config.githubToken);
+        setGithubUser({ login: user.login });
+      } catch {
+        // Token inválido — continua a geração mas avisa no passo de publicar
+      }
+    }
+
     try {
       let rawOutput = '';
       const onChunk = (chunk: string) => {
@@ -161,7 +171,18 @@ export default function App() {
 
       update({ pushResult, isLoading: false });
     } catch (e) {
-      update({ error: (e as Error).message, isLoading: false, step: 4 });
+      const msg = (e as Error).message;
+      const isAuthError = /401|403|Bad credentials|requires authentication/i.test(msg);
+      const isDuplicateRepo = /422|already exists|name already exists/i.test(msg);
+
+      if (isAuthError) {
+        setGithubUser(null);
+        update({ error: 'Token GitHub inválido ou expirado — volta ao passo 2 e verifica o token.', isLoading: false, step: 2 });
+      } else if (isDuplicateRepo) {
+        update({ error: 'Já existe um repositório com este nome. Altera o nome do repositório e tenta de novo.', isLoading: false, step: 5 });
+      } else {
+        update({ error: msg, isLoading: false, step: 4 });
+      }
     }
   }
 
@@ -349,27 +370,26 @@ export default function App() {
                 />
               </div>
 
-              <div className="config-section">
-                <h3>🔍 Validação Dual-Pass (Opcional)</h3>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={config.useGroqValidation ?? false}
-                    onChange={e => saveConfig({ ...config, useGroqValidation: e.target.checked })}
-                  />
-                  Activar validação com Groq Llama 3 (melhora qualidade do código)
-                </label>
-                {config.useGroqValidation && (
+              {(config.aiProvider ?? 'gemini') === 'gemini' && (
+                <div className="config-section">
+                  <h3>🔍 Validação automática de código (Opcional)</h3>
+                  <p className="config-hint">
+                    Se forneceres uma chave Groq, o código gerado é validado e corrigido automaticamente antes de publicar.
+                  </p>
                   <input
                     type="password"
                     className="config-input"
-                    style={{ marginTop: 8 }}
-                    placeholder="Chave Groq (groq.com — gratuito)"
+                    placeholder="Chave Groq (opcional) — console.groq.com/keys"
                     value={config.groqApiKey ?? ''}
                     onChange={e => saveConfig({ ...config, groqApiKey: e.target.value })}
                   />
-                )}
-              </div>
+                  {config.groqApiKey && (
+                    <p className="success-msg" style={{ marginTop: 6 }}>
+                      <CheckCircle size={14} /> Validação automática activa
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="step-actions">
@@ -466,6 +486,11 @@ export default function App() {
                       {pushProgress.done}/{pushProgress.total} — {pushProgress.current}
                     </p>
                   </div>
+                )}
+                {!githubUser && (
+                  <p className="error-inline">
+                    <AlertCircle size={14} /> Token GitHub não verificado — volta ao passo 2 e clica em "Verificar".
+                  </p>
                 )}
                 <div className="step-actions">
                   <button className="btn-secondary" onClick={() => update({ step: 4 })}>

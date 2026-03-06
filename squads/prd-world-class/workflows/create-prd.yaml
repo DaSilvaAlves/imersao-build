@@ -1,0 +1,161 @@
+name: create-prd
+version: 1.0.0
+description: |
+  Workflow completo para criar PRDs de qualidade world-class para as ferramentas
+  do ecossistema Imersão IA Portugal. Orquestra os 5 especialistas em sequência,
+  cada um contribuindo com a sua expertise para um PRD final coeso e accionável.
+squad: prd-world-class
+
+metadata:
+  created: 2026-03-06
+  author: orion (aios-master)
+  tags:
+    - prd
+    - product
+    - imersao
+    - world-class
+
+triggers:
+  - type: manual
+    command: "*create-prd"
+
+inputs:
+  - name: tool_name
+    type: string
+    required: true
+    description: "Nome da ferramenta (ex: student-profiler, briefing-generator, aios-compiler)"
+  - name: scope
+    type: string
+    required: false
+    default: "full"
+    description: "Scope do PRD: full | quick | update"
+
+phases:
+  - id: phase-1
+    name: "Problem Definition"
+    agent: chen-wei
+    command: "*define-problem"
+    output: problem_statement.md
+    description: |
+      Chen Wei conduz entrevista estruturada para definir:
+      - O problema exacto que a ferramenta resolve
+      - Para quem (personas)
+      - Métricas de sucesso (North Star + guardrails)
+      - Scope explícito (IN / OUT)
+    elicit: true
+    elicit_prompt: |
+      Chen Wei vai fazer perguntas sobre a ferramenta.
+      Responde com o máximo de contexto possível.
+
+  - id: phase-2
+    name: "UX Research & Learning Design"
+    agent: sofia-ribeiro
+    command: "*map-journey"
+    depends_on: phase-1
+    output: ux_spec.md
+    parallel_with: phase-2b
+    description: |
+      Sofia Ribeiro mapeia:
+      - Jornada completa do utilizador
+      - Fluxos críticos (happy path + erros)
+      - Requisitos de interação
+      - Estados de loading, erro, vazio, sucesso
+
+  - id: phase-2b
+    name: "Pedagogical Audit"
+    agent: elena-volkov
+    command: "*learning-objectives"
+    depends_on: phase-1
+    output: pedagogy_spec.md
+    parallel_with: phase-2
+    description: |
+      Elena Volkov define:
+      - Objectivos de aprendizagem
+      - Scaffolding para cada etapa
+      - Especificação de feedback messages
+      - Arco de aprendizagem da ferramenta
+
+  - id: phase-3
+    name: "Technical Architecture"
+    agent: priya-kapoor
+    command: "*design-architecture"
+    depends_on: [phase-2, phase-2b]
+    output: tech_spec.md
+    description: |
+      Priya Kapoor especifica:
+      - Arquitectura técnica detalhada
+      - Contratos de dados (TypeScript types)
+      - Requisitos de performance
+      - Matriz de tratamento de erros
+
+  - id: phase-4
+    name: "Growth & Engagement Design"
+    agent: marcus-okonkwo
+    command: "*design-loop"
+    depends_on: phase-3
+    output: growth_spec.md
+    description: |
+      Marcus Okonkwo desenha:
+      - Loop de engagement da ferramenta
+      - Mecânica de partilha viral
+      - Hooks de retenção
+      - Contribuição para o flywheel da comunidade
+
+  - id: phase-5
+    name: "PRD Synthesis"
+    agent: chen-wei
+    command: "*write-prd"
+    depends_on: [phase-3, phase-4]
+    output: PRD_{tool_name}.md
+    description: |
+      Chen Wei sintetiza todos os inputs num PRD final:
+      - Problem Statement (validado)
+      - Goals & Success Metrics
+      - User Stories (5 core)
+      - Functional Requirements
+      - Non-Functional Requirements
+      - UX Spec reference
+      - Technical Spec reference
+      - Growth Mechanics
+      - Scope (IN / OUT)
+      - Open Questions
+
+outputs:
+  - path: "docs/prd/PRD_{tool_name}.md"
+    description: "PRD final completo e accionável"
+  - path: "docs/prd/specs/ux_{tool_name}.md"
+    description: "UX specification detalhada"
+  - path: "docs/prd/specs/tech_{tool_name}.md"
+    description: "Technical specification detalhada"
+  - path: "docs/prd/specs/pedagogy_{tool_name}.md"
+    description: "Pedagogical design specification"
+  - path: "docs/prd/specs/growth_{tool_name}.md"
+    description: "Growth & engagement specification"
+
+quality_gates:
+  - id: problem-clarity
+    check: "Problem statement passes the 'so what?' test"
+    owner: chen-wei
+    blocking: true
+
+  - id: ux-completeness
+    check: "All error states and empty states are documented"
+    owner: sofia-ribeiro
+    blocking: true
+
+  - id: tech-feasibility
+    check: "All requirements are technically achievable in 48h imersão sprint"
+    owner: priya-kapoor
+    blocking: true
+
+  - id: pedagogical-soundness
+    check: "Tool supports learning without creating cognitive overload"
+    owner: elena-volkov
+    blocking: false
+
+  - id: growth-loop-present
+    check: "At least one engagement hook and one sharing moment are specified"
+    owner: marcus-okonkwo
+    blocking: false
+
+estimated_duration: "2-4 horas por ferramenta (full scope)"

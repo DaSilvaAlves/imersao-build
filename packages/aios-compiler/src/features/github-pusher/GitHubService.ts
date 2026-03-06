@@ -205,6 +205,7 @@ export default defineConfig({
     outputDirectory: 'dist',
     installCommand: 'npm install',
     framework: 'vite',
+    rewrites: [{ source: '/(.*)', destination: '/index.html' }],
   }, null, 2);
 
   const mainTsx = `import { StrictMode } from 'react'

@@ -169,6 +169,19 @@ body {
   font-size: 1rem;
 }
 
+.error-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  color: var(--color-error);
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+}
+
 /* ---------- Main ---------- */
 .app-main {
   overflow-y: auto;
