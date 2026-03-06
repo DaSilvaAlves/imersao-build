@@ -13,7 +13,7 @@ import type { CompilerState, CompilerStep, GenerationResult } from './types';
 import { saveProject } from './lib/supabase';
 
 const STORAGE_KEY = 'aios_compiler_config';
-const AI_VELOCITY_URL = 'http://localhost:5333';
+const AI_VELOCITY_URL = 'https://ai-velocity-project.vercel.app';
 
 const STEPS: { num: CompilerStep; label: string; icon: React.ReactNode }[] = [
   { num: 1, label: 'Prompt', icon: <Zap size={14} /> },
@@ -95,9 +95,9 @@ export default function App() {
         await generateWithGemini(state.prompt, state.config.geminiApiKey, onChunk, state.config.geminiModel ?? GEMINI_DEFAULT_MODEL);
       }
 
-      // Pass 2: Groq validation (if enabled + key provided)
+      // Pass 2: Groq validation — runs automatically when key available, regardless of toggle
       let finalOutput = rawOutput;
-      if (state.config.useGroqValidation && state.config.groqApiKey) {
+      if (state.config.groqApiKey) {
         setState(s => ({
           ...s,
           streamingOutput: s.streamingOutput + '\n\n--- 🔍 A validar com Groq Llama 3... ---\n\n',
@@ -129,7 +129,8 @@ export default function App() {
     const { config, generationResult } = state;
     if (!config.githubToken || !githubUser || !generationResult) return;
 
-    const repoName = config.repoName ?? generateRepoName('meu-projeto');
+    const baseName = config.repoName?.trim() || generateRepoName('meu-projeto');
+    const repoName = `${baseName}-${Date.now().toString(36)}`;
 
     update({ isLoading: true, error: null, step: 5 });
     try {

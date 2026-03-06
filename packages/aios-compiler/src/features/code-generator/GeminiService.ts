@@ -28,8 +28,9 @@ OUTPUT FORMAT — one code block per file, filename on the opening fence line:
 [complete file content]
 \`\`\`
 
-Start with: src/styles/theme.css → src/types/index.ts → features → src/App.tsx → src/main.tsx
-Include ALL files. Do not skip any file.`;
+Generate ONLY these files (in order): src/styles/theme.css → src/types/index.ts → src/features/* → src/App.tsx
+DO NOT generate: src/main.tsx, package.json, vite.config.ts, tsconfig*.json, index.html, vercel.json — these are provided by the build system.
+Include ALL feature files. Do not skip any. Do not truncate.`;
 
 export async function generateWithGemini(
   prompt: string,

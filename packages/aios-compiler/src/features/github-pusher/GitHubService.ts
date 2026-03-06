@@ -120,7 +120,7 @@ function buildScaffold(repoName: string): Array<{ path: string; content: string 
     type: 'module',
     scripts: {
       dev: 'vite',
-      build: 'tsc -b && vite build',
+      build: 'vite build',
       preview: 'vite preview',
     },
     dependencies: {
@@ -245,17 +245,24 @@ export async function pushAllFiles(
   lastCommitSha = await pushFileToRepo(token, owner, repo.name, 'README.md', readmeContent, 'main');
   pushedFiles.push('README.md');
 
-  // Inject complete Vite scaffold — overrides any incomplete AI-generated versions
+  // Critical files always come from scaffold — AI output NEVER overrides these
+  // Root cause fix: AI-generated main.tsx/package.json often has syntax errors
+  const PROTECTED = new Set([
+    'src/main.tsx', 'package.json', 'vite.config.ts',
+    'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json',
+    'vercel.json', 'index.html',
+  ]);
   const aiFilePaths = new Set(files.map(f => f.filename));
-  const scaffold = buildScaffold(repo.name).filter(s => !aiFilePaths.has(s.path));
+  const scaffold = buildScaffold(repo.name).filter(s => PROTECTED.has(s.path) || !aiFilePaths.has(s.path));
   for (const s of scaffold) {
     lastCommitSha = await pushFileToRepo(token, owner, repo.name, s.path, s.content, 'main');
     pushedFiles.push(s.path);
   }
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    onProgress(i + 1, files.length, file.filename);
+  const safeFiles = files.filter(f => !PROTECTED.has(f.filename));
+  for (let i = 0; i < safeFiles.length; i++) {
+    const file = safeFiles[i];
+    onProgress(i + 1, safeFiles.length, file.filename);
     lastCommitSha = await pushFileToRepo(
       token,
       owner,
@@ -267,7 +274,7 @@ export async function pushAllFiles(
     pushedFiles.push(file.filename);
 
     // Small delay to avoid rate limiting
-    if (i < files.length - 1) await new Promise(r => setTimeout(r, 300));
+    if (i < safeFiles.length - 1) await new Promise(r => setTimeout(r, 300));
   }
 
   return {
