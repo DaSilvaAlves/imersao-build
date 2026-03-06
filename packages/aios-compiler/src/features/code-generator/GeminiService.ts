@@ -5,21 +5,10 @@ export const GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer. You write SYNTACTICALLY PERFECT code that compiles without errors.
-
-CRITICAL RULES — violating any of these will break the build:
-1. Every function parameter MUST have a type: (id: number) ✓  (id:) ✗  (id) with inferred type ✓
-2. Every interface property MUST have a colon: title: string ✓  title string ✗
-3. Every useState call MUST be complete: useState('') ✓  useState('' ✗
-4. Every JSX tag MUST be valid: <input type="text" /> ✓  <input="text" /> ✗  < value={x} /> ✗
-5. Every import MUST match the actual export: if you export default X, import X (not { X })
-6. NEVER use React namespace directly unless you import React: import React from 'react'
-7. All JSX event handlers: onChange={(e) => fn(e.target.value)} — complete syntax always
-8. NO truncated code. NO "..." placeholders. NO "// rest of code here" comments.
-9. Every file must be self-contained and compilable in isolation.
-10. Use TypeScript strict mode compatible code.
-
-OUTPUT FORMAT — one code block per file, filename on the opening fence line:
+const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer.
+Generate complete, production-ready code with NO placeholders or TODO comments.
+Output each file in a separate code block with the filename on the opening fence line.
+FORMAT — one code block per file:
 \`\`\`typescript src/App.tsx
 [complete file content]
 \`\`\`

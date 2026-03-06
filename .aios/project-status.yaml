@@ -1,0 +1,17 @@
+status:
+  branch: master
+  modifiedFiles:
+    - packages/aios-compiler/src/App.tsx
+    - packages/aios-compiler/src/features/github-pusher/GitHubService.ts
+    - HANDOFF.md
+  modifiedFilesTotalCount: 3
+  recentCommits:
+    - 'fix(compiler): prompts de geração e validação muito mais rigorosos'
+    - 'fix: corrigir bugs críticos e2e — Groq, TypeScript, Supabase RLS'
+  currentEpic: null
+  currentStory: null
+  lastUpdate: '2026-03-06T03:04:48.159Z'
+  isGitRepo: true
+timestamp: 1772766288160
+ttl: 60
+gitFingerprint: 1772598835404.1675:1772747911061.1135
