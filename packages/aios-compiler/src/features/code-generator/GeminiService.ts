@@ -17,6 +17,13 @@ FORMAT — one code block per file:
 [complete file content]
 \`\`\`
 
+CRITICAL TYPESCRIPT RULES — violations cause build failures:
+- Every interface MUST have opening AND closing braces: interface Name { ... }
+- Every type alias MUST use equals: type Name = ...
+- Every function parameter MUST have a type annotation
+- Every useState MUST be complete with closing parenthesis and semicolon
+- Never truncate a file mid-function or mid-interface
+
 Generate ONLY these files (in order): src/styles/theme.css → src/types/index.ts → src/features/* → src/App.tsx
 DO NOT generate: src/main.tsx, package.json, vite.config.ts, tsconfig*.json, index.html, vercel.json — these are provided by the build system.
 Include ALL feature files. Do not skip any. Do not truncate.`;
@@ -146,15 +153,43 @@ export async function validateWithGroq(
 ): Promise<string> {
   const validationPrompt = `You are a TypeScript compiler. Your job is to find and fix ALL syntax errors in this React 19 + TypeScript code so it compiles with zero errors.
 
-CHECK EVERY FILE FOR:
-- Parameters without types: (id:) → fix to (id: number)
-- Interface properties missing colon: title string → fix to title: string
-- Incomplete useState: useState('' → fix to useState('')
-- Malformed JSX tags: <input="text" → fix to <input type="text"
-- Broken onChange handlers: onChangeevent) → fix to onChange={(e) => ...}
-- Missing closing tags or braces
-- Imports that don't match exports
-- Truncated or incomplete functions
+CRITICAL — CHECK EVERY FILE FOR THESE EXACT PATTERNS:
+
+1. INTERFACE/TYPE MISSING OPENING BRACE — most common error:
+   WRONG:  interface TaskGroup  title: string;
+   WRONG:  interface User  id: number;
+   FIXED:  interface TaskGroup { title: string;
+   Rule: every "interface Name" MUST be followed immediately by "{"
+
+2. TYPE ALIAS MISSING EQUALS OR BRACE:
+   WRONG:  type Status  'active' | 'done'
+   FIXED:  type Status = 'active' | 'done'
+
+3. Interface properties missing colon:
+   WRONG:  title string
+   FIXED:  title: string
+
+4. Parameters without types:
+   WRONG:  (id:) or (name,) with no type
+   FIXED:  (id: number) (name: string)
+
+5. Incomplete useState:
+   WRONG:  useState(''
+   FIXED:  useState('')
+
+6. Malformed JSX tags:
+   WRONG:  <input="text"
+   FIXED:  <input type="text"
+
+7. Broken onChange handlers:
+   WRONG:  onChangeevent)
+   FIXED:  onChange={(e) => ...}
+
+8. Missing closing tags, braces, or parentheses
+9. Imports that don't match exports
+10. Truncated or incomplete functions
+
+SCAN EVERY INTERFACE AND TYPE DECLARATION FIRST before anything else.
 
 OUTPUT: Rewrite ALL files in full with EVERY error fixed. Same format as input. Do not skip any file. Do not truncate.
 
