@@ -328,7 +328,12 @@ export default function App() {
 
               <div className="config-section">
                 <h3>🐙 GitHub Personal Access Token</h3>
-                <p className="config-hint">Settings → Developer settings → Personal access tokens</p>
+                <p className="config-hint">
+                  <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=AIOS+Compiler" target="_blank" rel="noopener noreferrer">
+                    Criar token no GitHub →
+                  </a>
+                  {' '}(marcar scope: <strong>repo</strong>)
+                </p>
                 <div className="input-row">
                   <input
                     type="password"
