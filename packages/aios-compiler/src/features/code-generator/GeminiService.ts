@@ -173,6 +173,12 @@ export function preProcessCode(code: string): string {
   // Fix: remove any local imports (from './...' or from '../...') — not allowed in single-file
   code = code.replace(/^[ \t]*import\s[^\n]+from\s+['"]\.\.?\//gm, '// removed local import: ');
 
+  // Fix: const declaration missing colon before type — e.g. "const App React.FC = () {"
+  code = code.replace(/\bconst\s+(\w+)\s+([A-Z][A-Za-z.]+)\s*=/g, 'const $1: $2 =');
+
+  // Fix: arrow function missing => — e.g. "= () {" or "= (x: T) {"
+  code = code.replace(/=\s*(\([^)]*\))\s*\{/g, '= $1 => {');
+
   // Fix: import missing closing brace — e.g. "import { Search, Plus from 'lucide-react'"
   code = code.replace(/import\s+\{([^}]+?)\s+from\s+(['"][^'"]+['"])/g,
     (_m, specifiers, path) => `import { ${specifiers.trim()} } from ${path}`);
