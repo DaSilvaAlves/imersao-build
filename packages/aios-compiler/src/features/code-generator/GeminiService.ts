@@ -157,11 +157,31 @@ export async function generateWithGroq(
   return fullText;
 }
 
+/**
+ * Deterministic pre-processor — fixes common LLM output corruption before Groq validation.
+ * These are regex-based fixes that never fail, unlike LLM-based validation.
+ */
+function preProcessCode(code: string): string {
+  // Fix: line missing "import" keyword — e.g. " { Search, Plus } from 'lucide-react'"
+  // Happens when LLM splits a multi-import line and drops the keyword on continuation lines
+  code = code.replace(/^([ \t]*)\{([^}]+)\}([ \t]+from[ \t]+['"][^'"]+['"])/gm,
+    '$1import {$2}$3');
+
+  // Fix: merged import lines — e.g. "import A from './x'import B from './y'"
+  code = code.replace(/(from\s+['"][^'"]+['"];?)\s*(import\s)/g, '$1\n$2');
+
+  // Fix: remove any local imports (from './...' or from '../...') — not allowed in single-file
+  code = code.replace(/^[ \t]*import\s[^\n]+from\s+['"]\.\.?\//gm, '// removed local import: ');
+
+  return code;
+}
+
 export async function validateWithGroq(
   generatedCode: string,
   apiKey: string,
   onChunk: (chunk: string) => void
 ): Promise<string> {
+  const preProcessed = preProcessCode(generatedCode);
   const validationPrompt = `You are a TypeScript compiler. Fix ALL syntax errors in this single-file React 19 + TypeScript app so it compiles with zero errors.
 
 This is ONE file: src/App.tsx. It must only import from 'react' or 'lucide-react'. No local imports.
@@ -199,7 +219,7 @@ CHECK THESE PATTERNS IN ORDER:
 OUTPUT: Rewrite the complete fixed src/App.tsx in a single code block. Do not truncate.
 
 CODE TO VALIDATE AND FIX:
-${generatedCode}`;
+${preProcessed}`;
 
   const response = await fetch(GROQ_BASE, {
     method: 'POST',
