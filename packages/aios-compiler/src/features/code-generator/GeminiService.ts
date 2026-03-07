@@ -184,12 +184,9 @@ export function preProcessCode(code: string): string {
   // Fix: merged import lines — e.g. "import A from './x'import B from './y'"
   code = code.replace(/(from\s+['"][^'"]+['"];?)\s*(import\s)/g, '$1\n$2');
 
-  // Fix: remove any local imports (from './...' or from '../...') — not allowed in single-file
-  code = code.replace(/^[ \t]*import\s[^\n]+from\s+['"]\.\.?\//gm, '// removed local import: ');
-
-  // Fix: import local sem "from" — e.g. "import Feature3 './features/feature-3'"
-  code = code.replace(/^[ \t]*import\s+\w+\s+'\.\.?\//gm, '// removed local import: ');
-  code = code.replace(/^[ \t]*import\s+\w+\s+"\.\.?\//gm, '// removed local import: ');
+  // Fix: remove ALL local imports — any variant (with/without 'from', named/default/namespace)
+  // Catches: import X from './...', import X './...', import { X } './...', import * as X './...'
+  code = code.replace(/^[ \t]*import\b[^\n]*['"]\.\.?\/[^\n]*/gm, '// removed local import');
 
   // Fix: const declaration missing colon before type — e.g. "const App React.FC = () {"
   code = code.replace(/\bconst\s+(\w+)\s+([A-Z][A-Za-z.]+)\s*=/g, 'const $1: $2 =');
