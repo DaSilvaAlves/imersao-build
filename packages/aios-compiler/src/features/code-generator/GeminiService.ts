@@ -197,6 +197,9 @@ export function preProcessCode(code: string): string {
   // Fix: arrow function missing => — e.g. "= () {" or "= (x: T) {"
   code = code.replace(/=\s*(\([^)]*\))\s*\{/g, '= $1 => {');
 
+  // Fix: interface/object property missing name — e.g. "  : boolean;" → "  _field: boolean;"
+  code = code.replace(/^([ \t]+):\s+(\w)/gm, '$1_field: $2');
+
   // Fix: import missing closing brace — e.g. "import { Search, Plus from 'lucide-react'"
   code = code.replace(/import\s+\{([^}]+?)\s+from\s+(['"][^'"]+['"])/g,
     (_m, specifiers, path) => `import { ${specifiers.trim()} } from ${path}`);
