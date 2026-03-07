@@ -105,9 +105,11 @@ export default function App() {
         await generateWithGemini(state.prompt, state.config.geminiApiKey, onChunk, state.config.geminiModel ?? GEMINI_DEFAULT_MODEL);
       }
 
-      // Pass 2: Groq validation — runs automatically when key available, regardless of toggle
+      // Pass 2: Groq validation — only when Gemini was used for generation
+      // (Groq validating its own output degrades quality and introduces new errors)
+      const usedGroq = (state.config.aiProvider ?? 'gemini') === 'groq';
       let finalOutput = rawOutput;
-      if (state.config.groqApiKey) {
+      if (!usedGroq && state.config.groqApiKey) {
         setState(s => ({
           ...s,
           streamingOutput: s.streamingOutput + '\n\n--- 🔍 A validar com Groq Llama 3... ---\n\n',
