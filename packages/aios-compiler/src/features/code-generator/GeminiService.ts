@@ -193,6 +193,15 @@ export function preProcessCode(code: string): string {
   // Fix: arrow function missing => — e.g. "= () {" or "= (x: T) {"
   code = code.replace(/=\s*(\([^)]*\))\s*\{/g, '= $1 => {');
 
+  // Fix: truncated closing HTML tags — e.g. "</h>" → "</h1>", "</p" → "</p>"
+  code = code.replace(/<\/h>\s/g, '</h1> ');
+  code = code.replace(/<\/h>$/gm, '</h1>');
+
+  // Fix: truncated text content — lines ending mid-word before a tag
+  // Remove <Feature1 />, <Feature2 /> etc. — sub-components not allowed in single-file
+  code = code.replace(/<Feature\d+\s*\/>/g, '');
+  code = code.replace(/<[A-Z][a-zA-Z]+\d+\s*\/>/g, '');
+
   // Fix: interface/object property missing name — e.g. "  : boolean;" → "  _field: boolean;"
   code = code.replace(/^([ \t]+):\s+(\w)/gm, '$1_field: $2');
 
