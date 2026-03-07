@@ -5,57 +5,33 @@ export const GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
+// Used for Gemini generation
 const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer. You output ONLY valid TypeScript/JSX that compiles with zero errors.
 
 RULE 1 — ONE FILE ONLY: Generate exactly one file: src/App.tsx. Everything in one file.
 RULE 2 — NO LOCAL IMPORTS: Only import from 'react' or 'lucide-react'. Never from './anything'.
-RULE 3 — FOLLOW THE EXAMPLE BELOW exactly for structure and syntax.
 
-EXAMPLE OF CORRECT OUTPUT:
+OUTPUT FORMAT:
 \`\`\`typescript src/App.tsx
-import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
-
-interface Task {
-  id: number;
-  text: string;
-  done: boolean;
-}
-
-export default function App() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [input, setInput] = useState('');
-
-  const addTask = () => {
-    if (!input.trim()) return;
-    setTasks(prev => [...prev, { id: Date.now(), text: input, done: false }]);
-    setInput('');
-  };
-
-  return (
-    <div style={{ maxWidth: 480, margin: '2rem auto', fontFamily: 'sans-serif' }}>
-      <h1>Tasks</h1>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Add task" />
-        <button onClick={addTask}><Plus size={16} /></button>
-      </div>
-      <ul>
-        {tasks.map(t => (
-          <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
-            <button onClick={() => setTasks(prev => prev.filter(x => x.id !== t.id))}>
-              <Trash2 size={14} />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+[complete file content]
 \`\`\`
 
-Follow this exact structure. Now generate the app described by the user using the same pattern.
 Use inline styles. All types and components in the same file. export default function App() at the end.`;
+
+// Used for Groq JSON mode — forces structured output, eliminates token dropping
+const GROQ_JSON_SYSTEM = `You are a React 19 TypeScript developer. Output ONLY this JSON object, nothing else:
+{"code": "<complete src/App.tsx content here>"}
+
+The "code" value is the COMPLETE contents of src/App.tsx as a JSON string.
+Rules for the code:
+- Only import from 'react' or 'lucide-react' — never from local paths
+- All types, state, and components in one file
+- Use inline styles (no CSS imports)
+- Must end with: export default function App() { ... }
+- Every interface must have braces: interface Name { field: type; }
+- Every arrow function must have =>: const fn = () => { ... }
+- Every object property must have colon: { key: value }
+- Every array spread must be complete: [...prev, item]`;
 
 export async function generateWithGemini(
   prompt: string,
@@ -126,6 +102,7 @@ export async function generateWithGroq(
   apiKey: string,
   onChunk: (chunk: string) => void
 ): Promise<string> {
+  // Use JSON mode — forces structured output, eliminates token dropping by Llama
   const response = await fetch(GROQ_BASE, {
     method: 'POST',
     headers: {
@@ -135,11 +112,12 @@ export async function generateWithGroq(
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [
-        { role: 'system', content: SYSTEM_INSTRUCTION },
+        { role: 'system', content: GROQ_JSON_SYSTEM },
         { role: 'user', content: prompt },
       ],
       temperature: 0,
       max_tokens: 12000,
+      response_format: { type: 'json_object' },
       stream: true,
     }),
   });
@@ -171,6 +149,15 @@ export async function generateWithGroq(
       } catch { /* skip */ }
     }
   }
+
+  // Parse JSON mode response — extract code from {"code": "..."} wrapper
+  try {
+    const jsonResponse = JSON.parse(fullText) as { code?: string };
+    if (jsonResponse.code) {
+      const codeBlock = '```typescript src/App.tsx\n' + jsonResponse.code + '\n```';
+      return codeBlock;
+    }
+  } catch { /* not JSON — fall through to raw output */ }
 
   return fullText;
 }
