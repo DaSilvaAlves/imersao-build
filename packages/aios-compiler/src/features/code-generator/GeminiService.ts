@@ -6,42 +6,38 @@ const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer.
-Generate complete, production-ready code with NO placeholders or TODO comments.
-Output each file in a separate code block with the filename on the opening fence line.
-FORMAT — one code block per file:
+
+CRITICAL ARCHITECTURE RULE: Generate EXACTLY ONE FILE — src/App.tsx.
+Everything goes in this single file: types, state, components, styles.
+DO NOT generate multiple files. DO NOT create separate feature files.
+DO NOT generate: src/main.tsx, package.json, vite.config.ts, tsconfig*.json, index.html, vercel.json.
+
+OUTPUT FORMAT — exactly this, nothing else:
 \`\`\`typescript src/App.tsx
-[complete file content]
+[complete application code — all in one file]
 \`\`\`
 
-\`\`\`css src/styles/theme.css
-[complete file content]
-\`\`\`
+IMPORTS — only from external packages (react, lucide-react):
+- CORRECT: import { useState, useEffect } from 'react'
+- CORRECT: import { Search, Plus } from 'lucide-react'
+- WRONG: import anything from './anything' ← NEVER import from local paths
+- Every import MUST be from 'react' or 'lucide-react' only.
 
-CRITICAL TYPESCRIPT RULES — violations cause build failures:
-- Every interface MUST have opening AND closing braces: interface Name { ... }
-- Every type alias MUST use equals: type Name = ...
+TYPESCRIPT RULES:
+- Every interface MUST have braces: interface Name { field: type; }
+- Every type alias MUST use equals: type Status = 'active' | 'done'
+- Every object property MUST have colon: { name: 'John' } not { name 'John' }
 - Every function parameter MUST have a type annotation
-- Every useState MUST be complete with closing parenthesis and semicolon
-- Never truncate a file mid-function or mid-interface
+- Every useState MUST close with ): const [x, setX] = useState<Type>(value)
 
-JSX RETURN RULES — closing mismatch causes immediate build failure:
-- CORRECT:  return ( <div>...</div> );
-- WRONG:    return ( <div>...</div> };   NEVER use }; to close return(
-- WRONG:    return ( <div>...</div> }    NEVER use } to close return(
-- Rule: every "return (" MUST be closed with ");" — never "};" or "}"
+JSX RETURN — closing mismatch causes build failure:
+- CORRECT: return ( <div>...</div> );
+- WRONG:   return ( <div>...</div> };
+- Rule: every "return (" MUST close with ");"
 
-IMPORT RULES — broken imports are the #1 build failure cause:
-- CORRECT:  import { useState, useEffect } from 'react'
-- CORRECT:  import MyComponent from './components/MyComponent'
-- WRONG:    import from 'react'  ← missing specifier, NEVER write this
-- WRONG:    import X frompath    ← missing space + quotes, NEVER write this
-- WRONG:    import X from ./path ← path MUST be in single or double quotes
-- Every import MUST follow exactly: import [specifier] from '[path]'
-- Every path MUST be in quotes: './features/feature-1' not ./features/feature-1
+STYLES — use inline styles or a <style> tag inside the component. No external CSS imports.
 
-Generate ONLY these files (in order): src/styles/theme.css → src/types/index.ts → src/features/* → src/App.tsx
-DO NOT generate: src/main.tsx, package.json, vite.config.ts, tsconfig*.json, index.html, vercel.json — these are provided by the build system.
-Include ALL feature files. Do not skip any. Do not truncate.`;
+The file MUST export a default App function: export default function App() { ... }`;
 
 export async function generateWithGemini(
   prompt: string,
@@ -166,63 +162,41 @@ export async function validateWithGroq(
   apiKey: string,
   onChunk: (chunk: string) => void
 ): Promise<string> {
-  const validationPrompt = `You are a TypeScript compiler. Your job is to find and fix ALL syntax errors in this React 19 + TypeScript code so it compiles with zero errors.
+  const validationPrompt = `You are a TypeScript compiler. Fix ALL syntax errors in this single-file React 19 + TypeScript app so it compiles with zero errors.
 
-CRITICAL — CHECK EVERY FILE FOR THESE EXACT PATTERNS:
+This is ONE file: src/App.tsx. It must only import from 'react' or 'lucide-react'. No local imports.
 
-1. INTERFACE/TYPE MISSING OPENING BRACE — most common error:
-   WRONG:  interface TaskGroup  title: string;
+CHECK THESE PATTERNS IN ORDER:
+
+1. MERGED IMPORT LINES — most critical:
+   WRONG:  import A from './featuresimport B from './other'
+   FIXED:  (remove both — no local imports allowed. Keep only react/lucide-react imports)
+   Rule: ANY import from a local path ('./anything') MUST be removed entirely.
+
+2. INTERFACE/TYPE MISSING BRACE:
    WRONG:  interface User  id: number;
-   FIXED:  interface TaskGroup { title: string;
-   Rule: every "interface Name" MUST be followed immediately by "{"
+   FIXED:  interface User { id: number; }
 
-2. TYPE ALIAS MISSING EQUALS OR BRACE:
+3. TYPE ALIAS MISSING EQUALS:
    WRONG:  type Status  'active' | 'done'
    FIXED:  type Status = 'active' | 'done'
 
-3. Interface properties missing colon:
-   WRONG:  title string
-   FIXED:  title: string
+4. OBJECT/INTERFACE PROPERTY MISSING COLON:
+   WRONG:  { name 'John' }  or  name string; in interface
+   FIXED:  { name: 'John' }  or  name: string;
 
-4. Parameters without types:
-   WRONG:  (id:) or (name,) with no type
-   FIXED:  (id: number) (name: string)
+5. JSX RETURN WRONG CLOSING:
+   WRONG:  return ( <div/> };
+   FIXED:  return ( <div/> );
 
-5. Incomplete useState:
+6. INCOMPLETE useState:
    WRONG:  useState(''
    FIXED:  useState('')
 
-6. Malformed JSX tags:
-   WRONG:  <input="text"
-   FIXED:  <input type="text"
+7. MISSING export default:
+   The file MUST end with: export default function App() or export default App
 
-7. Broken onChange handlers:
-   WRONG:  onChangeevent)
-   FIXED:  onChange={(e) => ...}
-
-8. JSX return closed with wrong character:
-   WRONG:  return ( <div>...</div> };
-   WRONG:  return ( <div>...</div> }
-   FIXED:  return ( <div>...</div> );
-   Rule: every "return (" MUST close with ");" — scan every component function
-
-9. Missing closing tags, braces, or parentheses
-10. Imports that don't match exports
-11. Truncated or incomplete functions
-
-12. BROKEN IMPORT STATEMENTS — check every single import line:
-   WRONG:  import from 'react'          (missing specifier)
-   WRONG:  import X frompath            (missing space + quotes)
-   WRONG:  import Feature2 fromfeatures/feature-'  (malformed path)
-   WRONG:  import X from ./path         (path not in quotes)
-   FIXED:  import { useState } from 'react'
-   FIXED:  import Feature2 from './features/feature-2'
-   Rule: every import line MUST match: import [specifier] from '[quoted-path]'
-   Check EVERY import in EVERY file — this is the #1 build failure cause.
-
-SCAN EVERY INTERFACE AND TYPE DECLARATION FIRST before anything else.
-
-OUTPUT: Rewrite ALL files in full with EVERY error fixed. Same format as input. Do not skip any file. Do not truncate.
+OUTPUT: Rewrite the complete fixed src/App.tsx in a single code block. Do not truncate.
 
 CODE TO VALIDATE AND FIX:
 ${generatedCode}`;

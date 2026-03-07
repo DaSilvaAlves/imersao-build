@@ -247,6 +247,20 @@ export async function pushAllFiles(
   lastCommitSha = await pushFileToRepo(token, owner, repo.name, 'README.md', readmeContent, 'main');
   pushedFiles.push('README.md');
 
+  // Normalize AI file paths: LLMs sometimes omit the src/ prefix
+  // e.g. "App.tsx" → "src/App.tsx", "styles/theme.css" → "src/styles/theme.css"
+  const normalizedFiles = files.map(f => {
+    const name = f.filename;
+    // Root-level .tsx/.ts/.css without src/ prefix → add src/
+    if (!name.startsWith('src/') && !name.startsWith('public/') && !name.includes('/')) {
+      const ext = name.split('.').pop() ?? '';
+      if (['tsx', 'ts', 'css'].includes(ext)) {
+        return { ...f, filename: `src/${name}` };
+      }
+    }
+    return f;
+  });
+
   // Critical files always come from scaffold — AI output NEVER overrides these
   // Root cause fix: AI-generated main.tsx/package.json often has syntax errors
   const PROTECTED = new Set([
@@ -254,14 +268,23 @@ export async function pushAllFiles(
     'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json',
     'vercel.json', 'index.html',
   ]);
-  const aiFilePaths = new Set(files.map(f => f.filename));
-  const scaffold = buildScaffold(repo.name).filter(s => PROTECTED.has(s.path) || !aiFilePaths.has(s.path));
+  const aiFilePaths = new Set(normalizedFiles.map(f => f.filename));
+  // Fallback App.tsx — used only if LLM didn't generate src/App.tsx
+  const fallbackApp = `export default function App() {
+  return <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}><h1>${repo.name}</h1><p>A gerar conteúdo…</p></div>;
+}
+`;
+  const scaffoldBase = buildScaffold(repo.name);
+  if (!aiFilePaths.has('src/App.tsx')) {
+    scaffoldBase.push({ path: 'src/App.tsx', content: fallbackApp });
+  }
+  const scaffold = scaffoldBase.filter(s => PROTECTED.has(s.path) || !aiFilePaths.has(s.path));
   for (const s of scaffold) {
     lastCommitSha = await pushFileToRepo(token, owner, repo.name, s.path, s.content, 'main');
     pushedFiles.push(s.path);
   }
 
-  const safeFiles = files.filter(f => !PROTECTED.has(f.filename));
+  const safeFiles = normalizedFiles.filter(f => !PROTECTED.has(f.filename));
   for (let i = 0; i < safeFiles.length; i++) {
     const file = safeFiles[i];
     onProgress(i + 1, safeFiles.length, file.filename);
