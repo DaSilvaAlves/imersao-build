@@ -173,6 +173,10 @@ export function preProcessCode(code: string): string {
   // Fix: remove any local imports (from './...' or from '../...') — not allowed in single-file
   code = code.replace(/^[ \t]*import\s[^\n]+from\s+['"]\.\.?\//gm, '// removed local import: ');
 
+  // Fix: import missing closing brace — e.g. "import { Search, Plus from 'lucide-react'"
+  code = code.replace(/import\s+\{([^}]+?)\s+from\s+(['"][^'"]+['"])/g,
+    (_m, specifiers, path) => `import { ${specifiers.trim()} } from ${path}`);
+
   // Fix: interface without name — e.g. "interface {"
   let ifaceCounter = 0;
   code = code.replace(/\binterface\s+\{/g, () => `interface GeneratedType${++ifaceCounter} {`);
