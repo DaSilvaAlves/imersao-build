@@ -5,39 +5,57 @@ export const GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
 const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer.
+const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer. You output ONLY valid TypeScript/JSX that compiles with zero errors.
 
-CRITICAL ARCHITECTURE RULE: Generate EXACTLY ONE FILE — src/App.tsx.
-Everything goes in this single file: types, state, components, styles.
-DO NOT generate multiple files. DO NOT create separate feature files.
-DO NOT generate: src/main.tsx, package.json, vite.config.ts, tsconfig*.json, index.html, vercel.json.
+RULE 1 — ONE FILE ONLY: Generate exactly one file: src/App.tsx. Everything in one file.
+RULE 2 — NO LOCAL IMPORTS: Only import from 'react' or 'lucide-react'. Never from './anything'.
+RULE 3 — FOLLOW THE EXAMPLE BELOW exactly for structure and syntax.
 
-OUTPUT FORMAT — exactly this, nothing else:
+EXAMPLE OF CORRECT OUTPUT:
 \`\`\`typescript src/App.tsx
-[complete application code — all in one file]
+import { useState } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
+
+interface Task {
+  id: number;
+  text: string;
+  done: boolean;
+}
+
+export default function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [input, setInput] = useState('');
+
+  const addTask = () => {
+    if (!input.trim()) return;
+    setTasks(prev => [...prev, { id: Date.now(), text: input, done: false }]);
+    setInput('');
+  };
+
+  return (
+    <div style={{ maxWidth: 480, margin: '2rem auto', fontFamily: 'sans-serif' }}>
+      <h1>Tasks</h1>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Add task" />
+        <button onClick={addTask}><Plus size={16} /></button>
+      </div>
+      <ul>
+        {tasks.map(t => (
+          <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ textDecoration: t.done ? 'line-through' : 'none' }}>{t.text}</span>
+            <button onClick={() => setTasks(prev => prev.filter(x => x.id !== t.id))}>
+              <Trash2 size={14} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 \`\`\`
 
-IMPORTS — only from external packages (react, lucide-react):
-- CORRECT: import { useState, useEffect } from 'react'
-- CORRECT: import { Search, Plus } from 'lucide-react'
-- WRONG: import anything from './anything' ← NEVER import from local paths
-- Every import MUST be from 'react' or 'lucide-react' only.
-
-TYPESCRIPT RULES:
-- Every interface MUST have braces: interface Name { field: type; }
-- Every type alias MUST use equals: type Status = 'active' | 'done'
-- Every object property MUST have colon: { name: 'John' } not { name 'John' }
-- Every function parameter MUST have a type annotation
-- Every useState MUST close with ): const [x, setX] = useState<Type>(value)
-
-JSX RETURN — closing mismatch causes build failure:
-- CORRECT: return ( <div>...</div> );
-- WRONG:   return ( <div>...</div> };
-- Rule: every "return (" MUST close with ");"
-
-STYLES — use inline styles or a <style> tag inside the component. No external CSS imports.
-
-The file MUST export a default App function: export default function App() { ... }`;
+Follow this exact structure. Now generate the app described by the user using the same pattern.
+Use inline styles. All types and components in the same file. export default function App() at the end.`;
 
 export async function generateWithGemini(
   prompt: string,
@@ -120,8 +138,8 @@ export async function generateWithGroq(
         { role: 'system', content: SYSTEM_INSTRUCTION },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.3,
-      max_tokens: 8192,
+      temperature: 0,
+      max_tokens: 12000,
       stream: true,
     }),
   });
