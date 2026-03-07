@@ -151,13 +151,24 @@ export async function generateWithGroq(
   }
 
   // Parse JSON mode response — extract code from {"code": "..."} wrapper
+  // Try 1: proper JSON parse
   try {
     const jsonResponse = JSON.parse(fullText) as { code?: string };
     if (jsonResponse.code) {
-      const codeBlock = '```typescript src/App.tsx\n' + jsonResponse.code + '\n```';
-      return codeBlock;
+      return '```typescript src/App.tsx\n' + jsonResponse.code + '\n```';
     }
-  } catch { /* not JSON — fall through to raw output */ }
+  } catch { /* malformed JSON — try regex extraction */ }
+
+  // Try 2: regex extract "code" value even from malformed JSON
+  const codeMatch = fullText.match(/"code"\s*:\s*"([\s\S]+?)"\s*\}?\s*$/);
+  if (codeMatch) {
+    const extracted = codeMatch[1]
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+    return '```typescript src/App.tsx\n' + extracted + '\n```';
+  }
 
   return fullText;
 }
