@@ -161,7 +161,7 @@ export async function generateWithGroq(
  * Deterministic pre-processor — fixes common LLM output corruption before Groq validation.
  * These are regex-based fixes that never fail, unlike LLM-based validation.
  */
-function preProcessCode(code: string): string {
+export function preProcessCode(code: string): string {
   // Fix: line missing "import" keyword — e.g. " { Search, Plus } from 'lucide-react'"
   // Happens when LLM splits a multi-import line and drops the keyword on continuation lines
   code = code.replace(/^([ \t]*)\{([^}]+)\}([ \t]+from[ \t]+['"][^'"]+['"])/gm,

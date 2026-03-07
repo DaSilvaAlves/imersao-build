@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Wrench, Key, Zap, FolderOpen, Github, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import FileViewer from './features/file-viewer/FileViewer';
-import { generateWithGemini, generateWithGroq, validateWithGroq, GEMINI_DEFAULT_MODEL } from './features/code-generator/GeminiService';
+import { generateWithGemini, generateWithGroq, validateWithGroq, preProcessCode, GEMINI_DEFAULT_MODEL } from './features/code-generator/GeminiService';
 import { parseGeneratedFiles, sortFiles } from './features/code-generator/CodeParser';
 import {
   getAuthenticatedUser,
@@ -120,6 +120,8 @@ export default function App() {
         finalOutput = await validateWithGroq(rawOutput, state.config.groqApiKey, onGroqChunk);
       }
 
+      // Always run deterministic pre-processor on final output — regardless of Groq
+      finalOutput = preProcessCode(finalOutput);
       const parsedFiles = sortFiles(parseGeneratedFiles(finalOutput));
       const result: GenerationResult = {
         rawOutput: finalOutput,
