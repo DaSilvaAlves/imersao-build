@@ -13,7 +13,7 @@ import type { CompilerState, CompilerStep, GenerationResult } from './types';
 import { saveProject } from './lib/supabase';
 
 const STORAGE_KEY = 'aios_compiler_config';
-const AI_VELOCITY_URL = 'https://ai-velocity-project.vercel.app';
+const VERCEL_IMPORT_URL = 'https://vercel.com/import/git?s=';
 
 const STEPS: { num: CompilerStep; label: string; icon: React.ReactNode }[] = [
   { num: 1, label: 'Prompt', icon: <Zap size={14} /> },
@@ -518,12 +518,12 @@ export default function App() {
                 </p>
                 <div className="success-actions">
                   <a
-                    href={`${AI_VELOCITY_URL}?repo=${encodeURIComponent(pushResult.repo.htmlUrl)}`}
+                    href={`${VERCEL_IMPORT_URL}${encodeURIComponent(pushResult.repo.htmlUrl)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-primary"
                   >
-                    🚀 Abrir no AI Velocity Dashboard
+                    🚀 Deploy no Vercel
                   </a>
                   <a
                     href={pushResult.repo.htmlUrl}

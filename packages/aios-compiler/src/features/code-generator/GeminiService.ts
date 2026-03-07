@@ -24,6 +24,12 @@ CRITICAL TYPESCRIPT RULES — violations cause build failures:
 - Every useState MUST be complete with closing parenthesis and semicolon
 - Never truncate a file mid-function or mid-interface
 
+JSX RETURN RULES — closing mismatch causes immediate build failure:
+- CORRECT:  return ( <div>...</div> );
+- WRONG:    return ( <div>...</div> };   NEVER use }; to close return(
+- WRONG:    return ( <div>...</div> }    NEVER use } to close return(
+- Rule: every "return (" MUST be closed with ");" — never "};" or "}"
+
 IMPORT RULES — broken imports are the #1 build failure cause:
 - CORRECT:  import { useState, useEffect } from 'react'
 - CORRECT:  import MyComponent from './components/MyComponent'
@@ -194,11 +200,17 @@ CRITICAL — CHECK EVERY FILE FOR THESE EXACT PATTERNS:
    WRONG:  onChangeevent)
    FIXED:  onChange={(e) => ...}
 
-8. Missing closing tags, braces, or parentheses
-9. Imports that don't match exports
-10. Truncated or incomplete functions
+8. JSX return closed with wrong character:
+   WRONG:  return ( <div>...</div> };
+   WRONG:  return ( <div>...</div> }
+   FIXED:  return ( <div>...</div> );
+   Rule: every "return (" MUST close with ");" — scan every component function
 
-11. BROKEN IMPORT STATEMENTS — check every single import line:
+9. Missing closing tags, braces, or parentheses
+10. Imports that don't match exports
+11. Truncated or incomplete functions
+
+12. BROKEN IMPORT STATEMENTS — check every single import line:
    WRONG:  import from 'react'          (missing specifier)
    WRONG:  import X frompath            (missing space + quotes)
    WRONG:  import Feature2 fromfeatures/feature-'  (malformed path)
