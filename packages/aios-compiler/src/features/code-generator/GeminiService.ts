@@ -173,6 +173,13 @@ function preProcessCode(code: string): string {
   // Fix: remove any local imports (from './...' or from '../...') — not allowed in single-file
   code = code.replace(/^[ \t]*import\s[^\n]+from\s+['"]\.\.?\//gm, '// removed local import: ');
 
+  // Fix: interface without name — e.g. "interface {"
+  let ifaceCounter = 0;
+  code = code.replace(/\binterface\s+\{/g, () => `interface GeneratedType${++ifaceCounter} {`);
+
+  // Fix: type alias without name — e.g. "type = 'active' | 'done'"
+  code = code.replace(/\btype\s+=\s+/g, 'type GeneratedType = ');
+
   return code;
 }
 
