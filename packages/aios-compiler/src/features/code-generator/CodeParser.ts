@@ -102,6 +102,22 @@ export function parseGeneratedFiles(rawOutput: string): GeneratedFile[] {
     });
   }
 
+  // Format G — fallback: any code block without filename → assume src/App.tsx
+  // Handles cases where LLM or validator omits the filename from the fence
+  if (files.length === 0) {
+    const anyFence = /```(?:typescript|tsx|jsx?)\n([\s\S]+?)```/;
+    const fm = anyFence.exec(rawOutput);
+    if (fm) {
+      const clean = fm[1].trimEnd();
+      files.push({
+        filename: 'src/App.tsx',
+        content: clean,
+        language: 'typescript',
+        lineCount: clean.split('\n').length,
+      });
+    }
+  }
+
   return files;
 }
 
