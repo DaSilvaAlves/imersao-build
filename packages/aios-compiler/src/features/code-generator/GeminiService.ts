@@ -24,6 +24,15 @@ CRITICAL TYPESCRIPT RULES — violations cause build failures:
 - Every useState MUST be complete with closing parenthesis and semicolon
 - Never truncate a file mid-function or mid-interface
 
+IMPORT RULES — broken imports are the #1 build failure cause:
+- CORRECT:  import { useState, useEffect } from 'react'
+- CORRECT:  import MyComponent from './components/MyComponent'
+- WRONG:    import from 'react'  ← missing specifier, NEVER write this
+- WRONG:    import X frompath    ← missing space + quotes, NEVER write this
+- WRONG:    import X from ./path ← path MUST be in single or double quotes
+- Every import MUST follow exactly: import [specifier] from '[path]'
+- Every path MUST be in quotes: './features/feature-1' not ./features/feature-1
+
 Generate ONLY these files (in order): src/styles/theme.css → src/types/index.ts → src/features/* → src/App.tsx
 DO NOT generate: src/main.tsx, package.json, vite.config.ts, tsconfig*.json, index.html, vercel.json — these are provided by the build system.
 Include ALL feature files. Do not skip any. Do not truncate.`;
@@ -188,6 +197,16 @@ CRITICAL — CHECK EVERY FILE FOR THESE EXACT PATTERNS:
 8. Missing closing tags, braces, or parentheses
 9. Imports that don't match exports
 10. Truncated or incomplete functions
+
+11. BROKEN IMPORT STATEMENTS — check every single import line:
+   WRONG:  import from 'react'          (missing specifier)
+   WRONG:  import X frompath            (missing space + quotes)
+   WRONG:  import Feature2 fromfeatures/feature-'  (malformed path)
+   WRONG:  import X from ./path         (path not in quotes)
+   FIXED:  import { useState } from 'react'
+   FIXED:  import Feature2 from './features/feature-2'
+   Rule: every import line MUST match: import [specifier] from '[quoted-path]'
+   Check EVERY import in EVERY file — this is the #1 build failure cause.
 
 SCAN EVERY INTERFACE AND TYPE DECLARATION FIRST before anything else.
 
