@@ -19,19 +19,31 @@ OUTPUT FORMAT:
 Use inline styles. All types and components in the same file. export default function App() at the end.`;
 
 // Used for Groq JSON mode — forces structured output, eliminates token dropping
-const GROQ_JSON_SYSTEM = `You are a React 19 TypeScript developer. Output ONLY this JSON object, nothing else:
-{"code": "<complete src/App.tsx content here>"}
+const GROQ_MARKER_SYSTEM = `You are a React 19 TypeScript developer. Output the complete src/App.tsx between these exact markers:
 
-The "code" value is the COMPLETE contents of src/App.tsx as a JSON string.
-Rules for the code:
-- Only import from 'react' or 'lucide-react' — never from local paths
+===APP_START===
+[complete src/App.tsx content here]
+===APP_END===
+
+Rules:
+- Only import from 'react' or 'lucide-react' — never from './anything'
 - All types, state, and components in one file
-- Use inline styles (no CSS imports)
+- Use inline styles only (no CSS imports)
 - Must end with: export default function App() { ... }
 - Every interface must have braces: interface Name { field: type; }
 - Every arrow function must have =>: const fn = () => { ... }
 - Every object property must have colon: { key: value }
-- Every array spread must be complete: [...prev, item]`;
+- Every array spread must be complete: [...prev, item]
+
+Example:
+===APP_START===
+import { useState } from 'react'
+interface Task { id: number; text: string; done: boolean; }
+export default function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  return <div style={{ padding: '2rem' }}><h1>App</h1></div>;
+}
+===APP_END===`;
 
 export async function generateWithGemini(
   prompt: string,
@@ -112,12 +124,11 @@ export async function generateWithGroq(
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [
-        { role: 'system', content: GROQ_JSON_SYSTEM },
+        { role: 'system', content: GROQ_MARKER_SYSTEM },
         { role: 'user', content: prompt },
       ],
       temperature: 0,
       max_tokens: 12000,
-      response_format: { type: 'json_object' },
       stream: true,
     }),
   });
@@ -150,26 +161,13 @@ export async function generateWithGroq(
     }
   }
 
-  // Parse JSON mode response — extract code from {"code": "..."} wrapper
-  // Try 1: proper JSON parse
-  try {
-    const jsonResponse = JSON.parse(fullText) as { code?: string };
-    if (jsonResponse.code) {
-      return '```typescript src/App.tsx\n' + jsonResponse.code + '\n```';
-    }
-  } catch { /* malformed JSON — try regex extraction */ }
-
-  // Try 2: regex extract "code" value — handles escaped quotes inside the string
-  const codeMatch = fullText.match(/"code"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (codeMatch) {
-    const extracted = codeMatch[1]
-      .replace(/\\n/g, '\n')
-      .replace(/\\t/g, '\t')
-      .replace(/\\"/g, '"')
-      .replace(/\\\\/g, '\\');
-    return '```typescript src/App.tsx\n' + extracted + '\n```';
+  // Extract code between ===APP_START=== and ===APP_END=== markers
+  const markerMatch = fullText.match(/===APP_START===\r?\n([\s\S]*?)\r?\n===APP_END===/);
+  if (markerMatch) {
+    return '```typescript src/App.tsx\n' + markerMatch[1].trim() + '\n```';
   }
 
+  // Fallback: return raw output (Format A/B/C/D in CodeParser will try to parse)
   return fullText;
 }
 
