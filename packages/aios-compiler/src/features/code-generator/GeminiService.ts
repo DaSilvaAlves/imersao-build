@@ -159,8 +159,8 @@ export async function generateWithGroq(
     }
   } catch { /* malformed JSON — try regex extraction */ }
 
-  // Try 2: regex extract "code" value even from malformed JSON
-  const codeMatch = fullText.match(/"code"\s*:\s*"([\s\S]+?)"\s*\}?\s*$/);
+  // Try 2: regex extract "code" value — handles escaped quotes inside the string
+  const codeMatch = fullText.match(/"code"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   if (codeMatch) {
     const extracted = codeMatch[1]
       .replace(/\\n/g, '\n')
