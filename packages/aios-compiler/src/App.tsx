@@ -99,7 +99,7 @@ export default function App() {
       // Pass 1: Generate (Gemini or Groq/Llama)
       if ((state.config.aiProvider ?? 'gemini') === 'groq') {
         if (!state.config.groqApiKey) throw new Error('Chave Groq em falta — preenche em Configuração.');
-        await generateWithGroq(state.prompt, state.config.groqApiKey, onChunk);
+        rawOutput = await generateWithGroq(state.prompt, state.config.groqApiKey, onChunk);
       } else {
         if (!state.config.geminiApiKey) throw new Error('Chave Gemini em falta.');
         await generateWithGemini(state.prompt, state.config.geminiApiKey, onChunk, state.config.geminiModel ?? GEMINI_DEFAULT_MODEL);

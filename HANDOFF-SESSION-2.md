@@ -88,34 +88,18 @@ O Compiler é um **processador** — a magia está no input.
 
 ### P0 — Antes do sábado
 
-#### 1. Guardar o PRD do AIOS Compiler em ficheiro
-O PRD foi criado com @chen-wei nesta sessão mas está apenas na memória.
-Precisa de ser guardado em `docs/prd/aios-compiler-prd.md`.
+#### 1. ✅ Guardar o PRD do AIOS Compiler em ficheiro — FEITO
+`docs/prd/aios-compiler-prd.md` criado (commit 8f0be4b)
 
-**Comando:**
-```
-@chen-wei — o PRD do AIOS Compiler que criámos está na memória desta sessão.
-Por favor gera o ficheiro completo em docs/prd/aios-compiler-prd.md
-```
-*(Atenção: se a sessão foi fechada, o PRD está neste HANDOFF resumido abaixo)*
+#### 2. ✅ Melhorar o Prompt Optimizer — FEITO (commit 8f0be4b)
+A secção [DESIGN] é agora 5x mais rica:
+- Typography: Google Fonts com carácter por estilo (Orbitron+Syne para glass, etc.)
+- Animations: blueprint completo por estilo (stagger, scan line, cursor, glitch)
+- CSS patterns: backdrop-filter, custom properties, texturas, glow
+- Components: terminal inputs, outline buttons luminosos
+- TypeScript: zero erros
 
-#### 2. Melhorar o Prompt Optimizer para produzir prompts de qualidade "fora de série"
-O Prompt Optimizer actual produz prompts funcionais mas sem detalhe visual.
-Precisa de injectar:
-- Paleta de cores específica (vinda dos design tokens do Starter Builder)
-- Tipografia com fontes com carácter (não Inter/Roboto/Arial)
-- Animações detalhadas (agora que motion@11 está no scaffold)
-- CSS patterns (glassmorphism, custom properties)
-
-**Ficheiro a melhorar:**
-`packages/prompt-optimizer/src/` — ver estrutura e melhorar o output
-
-**Skill a usar:**
-```
-@prompt-optimizer-pro
-```
-
-#### 3. Testar Fase 2 de erros (se houver tempo)
+#### 3. ⏳ Testar Fase 2 de erros — ADIADO (pós-sábado)
 - Teste A: token GitHub inválido → deve redirigir para step 2
 - Teste B: repo duplicado → deve ficar no step 5
 - Teste C: token não verificado no step 5 → aviso visível

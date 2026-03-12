@@ -6,44 +6,63 @@ const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 // Used for Gemini generation
-const SYSTEM_INSTRUCTION = `You are an expert React 19 + TypeScript developer. You output ONLY valid TypeScript/JSX that compiles with zero errors.
+const SYSTEM_INSTRUCTION = `You are a Senior React 19 + TypeScript developer and UI designer. Generate a COMPLETE, FULLY FUNCTIONAL app — not a skeleton, not a placeholder.
 
-RULE 1 — ONE FILE ONLY: Generate exactly one file: src/App.tsx. Everything in one file.
+RULE 1 — ONE FILE ONLY: Generate exactly one file: src/App.tsx. All types, state, components, and styles in one file.
 RULE 2 — NO LOCAL IMPORTS: Only import from 'react' or 'lucide-react'. Never from './anything'.
+RULE 3 — IMPLEMENT EVERYTHING: Every feature in [FEATURES] must be fully working — no placeholders, no TODOs.
+RULE 4 — PORTUGUESE UI: All visible text, labels, buttons, placeholders in Portuguese (PT-PT).
+RULE 5 — APPLY THE DESIGN: Use JavaScript style objects matching the [DESIGN] colors, glassmorphism, dark theme.
+RULE 6 — REAL DATA: Use realistic Portuguese example data. Never Lorem Ipsum.
+RULE 7 — LOCALSTORAGE: Persist state to localStorage and load on mount.
 
 OUTPUT FORMAT:
 \`\`\`typescript src/App.tsx
-[complete file content]
+[complete file content — minimum 150 lines]
 \`\`\`
 
-Use inline styles. All types and components in the same file. export default function App() at the end.`;
+Style pattern: const styles = { app: { minHeight: '100vh', backgroundColor: '#0a0a0a', ... }, card: { backdropFilter: 'blur(12px)', ... } } as const
+export default function App() at the end.`;
 
 // Used for Groq JSON mode — forces structured output, eliminates token dropping
-const GROQ_MARKER_SYSTEM = `You are a React 19 TypeScript developer. Output the complete src/App.tsx between these exact markers:
+const GROQ_MARKER_SYSTEM = `You are a Senior React 19 + TypeScript developer and UI designer. Generate a COMPLETE, FULLY FUNCTIONAL app — not a skeleton, not a placeholder.
+
+Output the complete src/App.tsx between these exact markers:
 
 ===APP_START===
-[complete src/App.tsx content here]
+[complete file content here]
 ===APP_END===
 
-Rules:
+ABSOLUTE RULES (breaking these causes build failure):
 - Only import from 'react' or 'lucide-react' — never from './anything'
-- All types, state, and components in one file
-- Use inline styles only (no CSS imports)
+- All types, state, components, and styles in ONE file
+- Use JavaScript style objects for CSS (const styles = { ... }) — no CSS file imports
 - Must end with: export default function App() { ... }
 - Every interface must have braces: interface Name { field: type; }
 - Every arrow function must have =>: const fn = () => { ... }
 - Every object property must have colon: { key: value }
 - Every array spread must be complete: [...prev, item]
 
-Example:
-===APP_START===
-import { useState } from 'react'
-interface Task { id: number; text: string; done: boolean; }
-export default function App() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  return <div style={{ padding: '2rem' }}><h1>App</h1></div>;
-}
-===APP_END===`;
+QUALITY RULES (the app must be production-ready):
+- Implement ALL features listed in [FEATURES] — every single one, fully working
+- UI text, labels, buttons, placeholders: Portuguese (PT-PT) — never English visible to users
+- Apply the visual style from [DESIGN] using inline style objects:
+  * Dark backgrounds: backgroundColor: '#0a0a0a' or similar
+  * Glassmorphism: backdropFilter: 'blur(12px)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'
+  * Accent colors from [DESIGN] — use the exact hex values provided
+  * Cards with box-shadow glow: boxShadow: '0 0 16px rgba(0,245,255,0.15)'
+- Use realistic Portuguese example data — never Lorem Ipsum, never "Test", never "Example"
+- LocalStorage persistence: save and load state on mount
+- Each feature gets its own clearly separated section in the file
+- Minimum 150 lines of real, working code
+
+STYLE OBJECT PATTERN (use this):
+const styles = {
+  app: { minHeight: '100vh', backgroundColor: '#0a0a0a', color: '#fff', fontFamily: 'system-ui, sans-serif', padding: '2rem' },
+  card: { background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '1.5rem' },
+  button: { border: '1px solid #00F5FF', color: '#00F5FF', background: 'transparent', padding: '0.5rem 1.25rem', borderRadius: '4px', cursor: 'pointer' },
+  input: { background: 'transparent', borderBottom: '1px solid #00F5FF', border: 'none', color: '#fff', padding: '0.5rem 0', width: '100%', outline: 'none' },
+} as const;`;
 
 export async function generateWithGemini(
   prompt: string,
@@ -162,12 +181,24 @@ export async function generateWithGroq(
   }
 
   // Extract code between ===APP_START=== and ===APP_END=== markers
-  const markerMatch = fullText.match(/===APP_START===\r?\n([\s\S]*?)\r?\n===APP_END===/);
+  const markerMatch = fullText.match(/===APP_START===\r?\n([\s\S]*)\r?\n===APP_END===/);
   if (markerMatch) {
-    return '```typescript src/App.tsx\n' + markerMatch[1].trim() + '\n```';
+    // Strip any inner code fences the LLM may have added inside the markers
+    // e.g. ```typescript\n...code...\n``` → just the code
+    let code = markerMatch[1].trim();
+    code = code.replace(/^```[\w]*\r?\n/, '').replace(/\r?\n```$/, '');
+    if (code.length > 0) {
+      return '```typescript src/App.tsx\n' + code + '\n```';
+    }
   }
 
-  // Fallback: return raw output (Format A/B/C/D in CodeParser will try to parse)
+  // Fallback: if markers failed or empty, look for any code fence in raw output
+  const fenceMatch = fullText.match(/```(?:typescript|tsx|jsx?)?\r?\n([\s\S]+?)```/);
+  if (fenceMatch && fenceMatch[1].trim().length > 50) {
+    return '```typescript src/App.tsx\n' + fenceMatch[1].trim() + '\n```';
+  }
+
+  // Last resort: return raw output (CodeParser formats A-G will try to parse)
   return fullText;
 }
 
@@ -184,9 +215,8 @@ export function preProcessCode(code: string): string {
   // Fix: merged import lines — e.g. "import A from './x'import B from './y'"
   code = code.replace(/(from\s+['"][^'"]+['"];?)\s*(import\s)/g, '$1\n$2');
 
-  // Fix: remove ALL local imports — any variant (with/without 'from', named/default/namespace)
-  // Catches: import X from './...', import X './...', import { X } './...', import * as X './...'
-  code = code.replace(/^[ \t]*import\b[^\n]*['"]\.\.?\/[^\n]*/gm, '// removed local import');
+  // NOTE: Local imports are NOT removed here — multi-file Gemini output has valid local imports.
+  // Groq single-file path enforces no local imports via its system prompt instead.
 
   // Fix: const declaration missing colon before type — e.g. "const App React.FC = () {"
   code = code.replace(/\bconst\s+(\w+)\s+([A-Z][A-Za-z.]+)\s*=/g, 'const $1: $2 =');
