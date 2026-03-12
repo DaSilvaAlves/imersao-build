@@ -249,15 +249,16 @@ export async function pushAllFiles(
   pushedFiles.push('README.md');
 
   // Normalize AI file paths: LLMs sometimes omit the src/ prefix
-  // e.g. "App.tsx" → "src/App.tsx", "styles/theme.css" → "src/styles/theme.css"
+  // e.g. "App.tsx" → "src/App.tsx", "components/Header.tsx" → "src/components/Header.tsx"
+  const SRC_EXTS = new Set(['tsx', 'ts', 'css', 'scss', 'jsx', 'js']);
   const normalizedFiles = files.map(f => {
     const name = f.filename;
-    // Root-level .tsx/.ts/.css without src/ prefix → add src/
-    if (!name.startsWith('src/') && !name.startsWith('public/') && !name.includes('/')) {
-      const ext = name.split('.').pop() ?? '';
-      if (['tsx', 'ts', 'css'].includes(ext)) {
-        return { ...f, filename: `src/${name}` };
-      }
+    // Already correct prefix — leave untouched
+    if (name.startsWith('src/') || name.startsWith('public/')) return f;
+    // Add src/ to any source file regardless of nesting depth
+    const ext = name.split('.').pop()?.toLowerCase() ?? '';
+    if (SRC_EXTS.has(ext)) {
+      return { ...f, filename: `src/${name}` };
     }
     return f;
   });
@@ -280,9 +281,11 @@ export async function pushAllFiles(
     scaffoldBase.push({ path: 'src/App.tsx', content: fallbackApp });
   }
   const scaffold = scaffoldBase.filter(s => PROTECTED.has(s.path) || !aiFilePaths.has(s.path));
-  for (const s of scaffold) {
+  for (let i = 0; i < scaffold.length; i++) {
+    const s = scaffold[i];
     lastCommitSha = await pushFileToRepo(token, owner, repo.name, s.path, s.content, 'main');
     pushedFiles.push(s.path);
+    if (i < scaffold.length - 1) await new Promise(r => setTimeout(r, 200));
   }
 
   const safeFiles = normalizedFiles.filter(f => !PROTECTED.has(f.filename));
