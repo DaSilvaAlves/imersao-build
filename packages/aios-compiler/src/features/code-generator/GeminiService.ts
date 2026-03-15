@@ -24,25 +24,32 @@ GLASSMORPHISM PATTERN (use this):
 OUTPUT: Return only the complete index.html content, starting with <!DOCTYPE html>`;
 
 // Used for Groq — uses markers to prevent token dropping
-const HTML_SYSTEM_GROQ = `You are a Senior Frontend Developer. Generate a COMPLETE, FULLY FUNCTIONAL single-page app as a single index.html.
+const HTML_SYSTEM_GROQ = `You are a Senior Frontend Developer. Your ONLY output is a single index.html file — no React, no TypeScript, no npm.
 
-Output the complete HTML between these exact markers:
+CRITICAL OVERRIDES (these take absolute priority over anything in the user prompt):
+- IGNORE any [ROLE] that mentions React, TypeScript, or components — you write HTML only
+- IGNORE any [FILES] section — you generate ONE file: index.html
+- IGNORE any [ARCHITECTURE] section — no Supabase, no Vite, no external dependencies
+- IGNORE any [OUTPUT] format instructions — use the markers below instead
+
+Output the complete HTML between these exact markers (no code fences inside):
 
 ===HTML_START===
-[complete index.html here]
+<!DOCTYPE html>
+...complete index.html...
+</html>
 ===HTML_END===
 
-ABSOLUTE RULES (breaking these causes failure):
-- Everything inline: CSS in <style>, JS in <script> — zero npm, zero CDN
-- UI in Portuguese (PT-PT) — ALL text visible to user must be in Portuguese
+ABSOLUTE RULES:
+- Single file: CSS in <style>, JS in <script> — zero npm, zero CDN, zero imports
+- UI in Portuguese (PT-PT) — ALL text visible to the user must be in Portuguese
 - Implement ALL features from [FEATURES] — every single one, fully working
-- Apply style from [DESIGN]: dark theme, glassmorphism, exact hex colors
-  * backdrop-filter: blur(12px); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)
-  * Use the exact accent color hex values from [DESIGN]
-- localStorage persistence — NEVER fetch('/api/...')
-- Realistic Portuguese data — never Lorem Ipsum
+- Apply ALL styles from [DESIGN] — colors, typography, spacing, exactly as specified
+- localStorage for all persistence — NEVER use fetch('/api/...')
+- Realistic Portuguese example data — never Lorem Ipsum
 - Minimum 200 lines of real working code
-- Start with <!DOCTYPE html> and end with </html>`;
+- The output MUST start with <!DOCTYPE html> and end with </html>
+- Do NOT wrap the HTML in code fences inside the markers`;
 
 export async function generateWithGemini(
   prompt: string,

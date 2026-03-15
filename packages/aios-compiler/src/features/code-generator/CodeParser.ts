@@ -13,7 +13,9 @@ export function parseGeneratedFiles(rawOutput: string): GeneratedFile[] {
   // 1. Marker extraction (Groq)
   const markerMatch = rawOutput.match(/===HTML_START===\r?\n([\s\S]*?)\r?\n===HTML_END===/);
   if (markerMatch) {
-    const content = markerMatch[1].trim();
+    // Strip code fence if LLM wrapped HTML inside the markers: ```html\n...\n```
+    let content = markerMatch[1].trim();
+    content = content.replace(/^```[\w]*\r?\n/, '').replace(/\r?\n```$/, '').trim();
     if (content.length > 100) {
       return [{ filename: 'index.html', content, language: 'html', lineCount: content.split('\n').length }];
     }
