@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Wrench, Key, Zap, FolderOpen, Github, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import FileViewer from './features/file-viewer/FileViewer';
-import { generateWithGemini, generateWithGroq, validateWithGroq, fixSyntaxWithGroq, preProcessCode, GEMINI_DEFAULT_MODEL } from './features/code-generator/GeminiService';
+import { generateWithGemini, generateWithGroq, GEMINI_DEFAULT_MODEL } from './features/code-generator/GeminiService';
 import { parseGeneratedFiles, sortFiles } from './features/code-generator/CodeParser';
 import {
   getAuthenticatedUser,
@@ -96,8 +96,8 @@ export default function App() {
         setState(s => ({ ...s, streamingOutput: s.streamingOutput + chunk }));
       };
 
-      // Pass 1: Generate (Gemini or Groq/Llama)
-      if ((state.config.aiProvider ?? 'groq') === 'groq') {
+      const usedGroq = (state.config.aiProvider ?? 'groq') === 'groq';
+      if (usedGroq) {
         if (!state.config.groqApiKey) throw new Error('Chave Groq em falta — preenche em Configuração.');
         rawOutput = await generateWithGroq(state.prompt, state.config.groqApiKey, onChunk);
       } else {
@@ -105,47 +105,21 @@ export default function App() {
         await generateWithGemini(state.prompt, state.config.geminiApiKey, onChunk, state.config.geminiModel ?? GEMINI_DEFAULT_MODEL);
       }
 
-      // Pass 2: Groq validation — only when Gemini was used for generation
-      // (Groq validating its own output degrades quality and introduces new errors)
-      const usedGroq = (state.config.aiProvider ?? 'groq') === 'groq';
-      let finalOutput = rawOutput;
-      if (!usedGroq && state.config.groqApiKey) {
-        setState(s => ({
-          ...s,
-          streamingOutput: s.streamingOutput + '\n\n--- 🔍 A validar com Groq Llama 3... ---\n\n',
-        }));
-        let groqOutput = '';
-        const onGroqChunk = (c: string) => {
-          groqOutput += c;
-          setState(s => ({ ...s, streamingOutput: s.streamingOutput + c }));
-        };
-        finalOutput = await validateWithGroq(rawOutput, state.config.groqApiKey, onGroqChunk);
+      const parsedFiles = sortFiles(parseGeneratedFiles(rawOutput));
+
+      // Guard: rejeitar output truncado
+      const htmlFile = parsedFiles.find(f => f.filename === 'index.html');
+      const htmlLines = htmlFile ? htmlFile.content.split('\n').length : 0;
+      if (htmlLines < 30) {
+        throw new Error(`HTML gerado está incompleto (${htmlLines} linhas — mínimo 30). O LLM truncou a resposta. Clica em "← Voltar" e tenta regenerar.`);
       }
 
-      // Always run deterministic pre-processor on final output — regardless of LLM used
-      finalOutput = preProcessCode(finalOutput);
-
-      // Always run dedicated syntax fixer if Groq key available — catches [x,y]=hook() errors
-      if (state.config.groqApiKey) {
-        setState(s => ({
-          ...s,
-          streamingOutput: s.streamingOutput + '\n\n--- 🔧 A corrigir sintaxe... ---\n\n',
-        }));
-        let fixOutput = '';
-        const onFixChunk = (c: string) => {
-          fixOutput += c;
-          setState(s => ({ ...s, streamingOutput: s.streamingOutput + c }));
-        };
-        finalOutput = await fixSyntaxWithGroq(finalOutput, state.config.groqApiKey, onFixChunk);
-      }
-
-      const parsedFiles = sortFiles(parseGeneratedFiles(finalOutput));
       const result: GenerationResult = {
-        rawOutput: finalOutput,
+        rawOutput,
         files: parsedFiles,
-        model: state.config.useGroqValidation ? 'gemini-2.0-flash + groq-llama3' : 'gemini-2.0-flash',
+        model: usedGroq ? 'groq / llama-3.3-70b' : (state.config.geminiModel ?? GEMINI_DEFAULT_MODEL),
         generatedAt: new Date().toISOString(),
-        passNumber: state.config.useGroqValidation ? 2 : 1,
+        passNumber: 1,
       };
 
       update({ generationResult: result, isLoading: false, step: 4 });
@@ -394,26 +368,6 @@ export default function App() {
                 />
               </div>
 
-              {(config.aiProvider ?? 'gemini') === 'gemini' && (
-                <div className="config-section">
-                  <h3>🔍 Validação automática de código (Opcional)</h3>
-                  <p className="config-hint">
-                    Se forneceres uma chave Groq, o código gerado é validado e corrigido automaticamente antes de publicar.
-                  </p>
-                  <input
-                    type="password"
-                    className="config-input"
-                    placeholder="Chave Groq (opcional) — console.groq.com/keys"
-                    value={config.groqApiKey ?? ''}
-                    onChange={e => saveConfig({ ...config, groqApiKey: e.target.value })}
-                  />
-                  {config.groqApiKey && (
-                    <p className="success-msg" style={{ marginTop: 6 }}>
-                      <CheckCircle size={14} /> Validação automática activa
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="step-actions">
@@ -423,7 +377,7 @@ export default function App() {
               <button
                 className="btn-primary"
                 onClick={handleGenerate}
-                disabled={(config.aiProvider ?? 'gemini') === 'groq' ? !config.groqApiKey : !config.geminiApiKey}
+                disabled={(config.aiProvider ?? 'groq') === 'groq' ? !config.groqApiKey : !config.geminiApiKey}
               >
                 🚀 Gerar Código
               </button>
@@ -438,7 +392,7 @@ export default function App() {
               <Loader size={18} className="spin" /> A gerar o teu código...
             </h2>
             <p className="step-desc">
-              {isLoading ? 'A Gemini está a trabalhar no teu projecto. Aguarda...' : 'Geração concluída!'}
+              {isLoading ? 'O LLM está a gerar o teu HTML. Aguarda...' : 'Geração concluída!'}
             </p>
             <div className="stream-output">
               <pre>{streamingOutput || 'A iniciar...'}</pre>

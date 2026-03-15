@@ -112,127 +112,6 @@ export async function pushFileToRepo(
   return result.commit.sha;
 }
 
-function buildScaffold(repoName: string): Array<{ path: string; content: string }> {
-  const pkgJson = JSON.stringify({
-    name: repoName,
-    private: true,
-    version: '0.0.0',
-    type: 'module',
-    scripts: {
-      dev: 'vite',
-      build: 'vite build',
-      preview: 'vite preview',
-    },
-    dependencies: {
-      'lucide-react': '^0.469.0',
-      motion: '^11.15.0',
-      react: '^19.0.0',
-      'react-dom': '^19.0.0',
-    },
-    devDependencies: {
-      '@types/react': '^19.0.2',
-      '@types/react-dom': '^19.0.2',
-      '@vitejs/plugin-react': '^4.3.4',
-      typescript: '~5.6.2',
-      vite: '^6.0.5',
-    },
-  }, null, 2);
-
-  const viteConfig = `import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-})
-`;
-
-  const indexHtml = `<!doctype html>
-<html lang="pt">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${repoName}</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{background:#ffffff;color:#111827;font-family:system-ui,sans-serif}</style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
-`;
-
-  const tsconfig = JSON.stringify({
-    files: [],
-    references: [{ path: './tsconfig.app.json' }, { path: './tsconfig.node.json' }],
-  }, null, 2);
-
-  const tsconfigApp = JSON.stringify({
-    compilerOptions: {
-      tsBuildInfoFile: './node_modules/.tmp/tsconfig.app.tsbuildinfo',
-      target: 'ES2020',
-      useDefineForClassFields: true,
-      lib: ['ES2020', 'DOM', 'DOM.Iterable'],
-      module: 'ESNext',
-      skipLibCheck: true,
-      moduleResolution: 'bundler',
-      allowImportingTsExtensions: true,
-      isolatedModules: true,
-      moduleDetection: 'force',
-      noEmit: true,
-      jsx: 'react-jsx',
-      strict: true,
-    },
-    include: ['src'],
-  }, null, 2);
-
-  const tsconfigNode = JSON.stringify({
-    compilerOptions: {
-      tsBuildInfoFile: './node_modules/.tmp/tsconfig.node.tsbuildinfo',
-      target: 'ES2022',
-      lib: ['ES2023'],
-      module: 'ESNext',
-      skipLibCheck: true,
-      moduleResolution: 'bundler',
-      allowImportingTsExtensions: true,
-      isolatedModules: true,
-      moduleDetection: 'force',
-      noEmit: true,
-      strict: true,
-    },
-    include: ['vite.config.ts'],
-  }, null, 2);
-
-  const vercelJson = JSON.stringify({
-    buildCommand: 'npm run build',
-    outputDirectory: 'dist',
-    installCommand: 'npm install',
-    framework: 'vite',
-    rewrites: [{ source: '/(.*)', destination: '/index.html' }],
-  }, null, 2);
-
-  const mainTsx = `import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
-`;
-
-  return [
-    { path: 'package.json',       content: pkgJson },
-    { path: 'vite.config.ts',     content: viteConfig },
-    { path: 'index.html',         content: indexHtml },
-    { path: 'tsconfig.json',      content: tsconfig },
-    { path: 'tsconfig.app.json',  content: tsconfigApp },
-    { path: 'tsconfig.node.json', content: tsconfigNode },
-    { path: 'vercel.json',        content: vercelJson },
-    { path: 'src/main.tsx',       content: mainTsx },
-  ];
-}
-
 export async function pushAllFiles(
   token: string,
   owner: string,
@@ -243,69 +122,25 @@ export async function pushAllFiles(
   const pushedFiles: string[] = [];
   let lastCommitSha = '';
 
-  // Init repo with README
+  // 1. README
   const readmeContent = `# ${repo.name}\n\nGerado automaticamente pelo AIOS Compiler — Imersão IA Portugal 🚀\n`;
   lastCommitSha = await pushFileToRepo(token, owner, repo.name, 'README.md', readmeContent, 'main');
   pushedFiles.push('README.md');
 
-  // Normalize AI file paths: LLMs sometimes omit the src/ prefix
-  // e.g. "App.tsx" → "src/App.tsx", "components/Header.tsx" → "src/components/Header.tsx"
-  const SRC_EXTS = new Set(['tsx', 'ts', 'css', 'scss', 'jsx', 'js']);
-  const normalizedFiles = files.map(f => {
-    // Strip leading slashes — LLM sometimes generates "/main.tsx" → "src//main.tsx" without this
-    const name = f.filename.replace(/^\/+/, '').replace(/\/\//g, '/');
-    // Already correct prefix — leave untouched
-    if (name.startsWith('src/') || name.startsWith('public/')) return { ...f, filename: name };
-    // Add src/ to any source file regardless of nesting depth
-    const ext = name.split('.').pop()?.toLowerCase() ?? '';
-    if (SRC_EXTS.has(ext)) {
-      return { ...f, filename: `src/${name}` };
-    }
-    return { ...f, filename: name };
-  });
+  // 2. vercel.json — static hosting, zero build command
+  const vercelJson = JSON.stringify({ cleanUrls: true }, null, 2);
+  await new Promise(r => setTimeout(r, 200));
+  lastCommitSha = await pushFileToRepo(token, owner, repo.name, 'vercel.json', vercelJson, 'main');
+  pushedFiles.push('vercel.json');
 
-  // Critical files always come from scaffold — AI output NEVER overrides these
-  // Root cause fix: AI-generated main.tsx/package.json often has syntax errors
-  const PROTECTED = new Set([
-    'src/main.tsx', 'package.json', 'vite.config.ts',
-    'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json',
-    'vercel.json', 'index.html',
-  ]);
-  const aiFilePaths = new Set(normalizedFiles.map(f => f.filename));
-  // Fallback App.tsx — used only if LLM didn't generate src/App.tsx
-  const fallbackApp = `export default function App() {
-  return <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}><h1>${repo.name}</h1><p>A gerar conteúdo…</p></div>;
-}
-`;
-  const scaffoldBase = buildScaffold(repo.name);
-  if (!aiFilePaths.has('src/App.tsx')) {
-    scaffoldBase.push({ path: 'src/App.tsx', content: fallbackApp });
-  }
-  const scaffold = scaffoldBase.filter(s => PROTECTED.has(s.path) || !aiFilePaths.has(s.path));
-  for (let i = 0; i < scaffold.length; i++) {
-    const s = scaffold[i];
-    lastCommitSha = await pushFileToRepo(token, owner, repo.name, s.path, s.content, 'main');
-    pushedFiles.push(s.path);
-    if (i < scaffold.length - 1) await new Promise(r => setTimeout(r, 200));
-  }
+  // 3. index.html from LLM (the only generated file)
+  const htmlFile = files.find(f => f.filename === 'index.html') ?? files[0];
+  if (!htmlFile) throw new Error('Nenhum ficheiro HTML gerado. Tenta regenerar.');
 
-  const safeFiles = normalizedFiles.filter(f => !PROTECTED.has(f.filename));
-  for (let i = 0; i < safeFiles.length; i++) {
-    const file = safeFiles[i];
-    onProgress(i + 1, safeFiles.length, file.filename);
-    lastCommitSha = await pushFileToRepo(
-      token,
-      owner,
-      repo.name,
-      file.filename,
-      file.content,
-      'main'
-    );
-    pushedFiles.push(file.filename);
-
-    // Small delay to avoid rate limiting
-    if (i < safeFiles.length - 1) await new Promise(r => setTimeout(r, 300));
-  }
+  await new Promise(r => setTimeout(r, 200));
+  onProgress(1, 1, 'index.html');
+  lastCommitSha = await pushFileToRepo(token, owner, repo.name, 'index.html', htmlFile.content, 'main');
+  pushedFiles.push('index.html');
 
   return {
     repo,
@@ -319,7 +154,7 @@ export function generateRepoName(projectName: string): string {
   return projectName
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')

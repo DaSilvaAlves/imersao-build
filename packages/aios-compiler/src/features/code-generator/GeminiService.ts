@@ -1,4 +1,4 @@
-// AI Code Generation Service — Gemini + Groq/Llama
+// AI Code Generation Service — HTML static output (zero build step)
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 export const GEMINI_DEFAULT_MODEL = 'gemini-2.0-flash';
@@ -6,62 +6,43 @@ const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 // Used for Gemini generation
-const SYSTEM_INSTRUCTION = `You are a Senior React 19 + TypeScript developer and UI designer. Generate a COMPLETE, FULLY FUNCTIONAL app — not a skeleton, not a placeholder.
+const HTML_SYSTEM_GEMINI = `You are a Senior Frontend Developer. Generate a COMPLETE, FULLY FUNCTIONAL single-page app as a single index.html file.
 
-RULE 1 — IMPLEMENT EVERYTHING: Every feature in [FEATURES] must be fully working — no placeholders, no TODOs.
-RULE 2 — PORTUGUESE UI: All visible text, labels, buttons, placeholders in Portuguese (PT-PT).
-RULE 3 — APPLY THE DESIGN: Use JavaScript style objects matching the [DESIGN] colors, glassmorphism, dark theme.
-RULE 4 — REAL DATA: Use realistic Portuguese example data. Never Lorem Ipsum.
-RULE 5 — LOCALSTORAGE: Persist state to localStorage and load on mount. Never call fetch('/api/...') — no backend exists.
-RULE 6 — FOLLOW [FILES]: Generate exactly the files listed in [FILES]. Use local imports between them as needed.
+ABSOLUTE RULES:
+- Everything inline: CSS in <style>, JavaScript in <script> — zero npm, zero CDN, zero external dependencies
+- UI in Portuguese (PT-PT) — ALL visible text, labels, buttons, placeholders must be in Portuguese
+- Implement ALL features from [FEATURES] — every single one, fully working, no placeholders, no TODOs
+- Apply the visual style from [DESIGN] — dark backgrounds, glassmorphism, exact hex colors provided
+- localStorage for all persistence — NEVER use fetch('/api/...'), no backend exists
+- Realistic Portuguese example data — never Lorem Ipsum, never "Test", never "Example"
+- Minimum 200 lines of real working code
 
-OUTPUT FORMAT:
-\`\`\`typescript src/App.tsx
-[complete file content — minimum 150 lines]
-\`\`\`
+GLASSMORPHISM PATTERN (use this):
+  background: rgba(255,255,255,0.05); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
 
-Style pattern: const styles = { app: { minHeight: '100vh', backgroundColor: '#0a0a0a', ... }, card: { backdropFilter: 'blur(12px)', ... } } as const
-export default function App() at the end.`;
+OUTPUT: Return only the complete index.html content, starting with <!DOCTYPE html>`;
 
-// Used for Groq JSON mode — forces structured output, eliminates token dropping
-const GROQ_MARKER_SYSTEM = `You are a Senior React 19 + TypeScript developer and UI designer. Generate a COMPLETE, FULLY FUNCTIONAL app — not a skeleton, not a placeholder.
+// Used for Groq — uses markers to prevent token dropping
+const HTML_SYSTEM_GROQ = `You are a Senior Frontend Developer. Generate a COMPLETE, FULLY FUNCTIONAL single-page app as a single index.html.
 
-Output the complete src/App.tsx between these exact markers:
+Output the complete HTML between these exact markers:
 
-===APP_START===
-[complete file content here]
-===APP_END===
+===HTML_START===
+[complete index.html here]
+===HTML_END===
 
-ABSOLUTE RULES (breaking these causes build failure):
-- Follow the [FILES] list exactly — generate every file listed, with correct local imports between them
-- Use JavaScript style objects for CSS when no theme.css is listed; use CSS file imports when theme.css IS listed
-- Must end with: export default function App() { ... }
-- NEVER call fetch('/api/...') — no backend exists. Use localStorage for all persistence.
-- Every interface must have braces: interface Name { field: type; }
-- Every arrow function must have =>: const fn = () => { ... }
-- Every object property must have colon: { key: value }
-- Every array spread must be complete: [...prev, item]
-
-QUALITY RULES (the app must be production-ready):
-- Implement ALL features listed in [FEATURES] — every single one, fully working
-- UI text, labels, buttons, placeholders: Portuguese (PT-PT) — never English visible to users
-- Apply the visual style from [DESIGN] using inline style objects:
-  * Dark backgrounds: backgroundColor: '#0a0a0a' or similar
-  * Glassmorphism: backdropFilter: 'blur(12px)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'
-  * Accent colors from [DESIGN] — use the exact hex values provided
-  * Cards with box-shadow glow: boxShadow: '0 0 16px rgba(0,245,255,0.15)'
-- Use realistic Portuguese example data — never Lorem Ipsum, never "Test", never "Example"
-- LocalStorage persistence: save and load state on mount
-- Each feature gets its own clearly separated section in the file
-- Minimum 150 lines of real, working code
-
-STYLE OBJECT PATTERN (use this):
-const styles = {
-  app: { minHeight: '100vh', backgroundColor: '#0a0a0a', color: '#fff', fontFamily: 'system-ui, sans-serif', padding: '2rem' },
-  card: { background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '1.5rem' },
-  button: { border: '1px solid #00F5FF', color: '#00F5FF', background: 'transparent', padding: '0.5rem 1.25rem', borderRadius: '4px', cursor: 'pointer' },
-  input: { background: 'transparent', borderBottom: '1px solid #00F5FF', border: 'none', color: '#fff', padding: '0.5rem 0', width: '100%', outline: 'none' },
-} as const;`;
+ABSOLUTE RULES (breaking these causes failure):
+- Everything inline: CSS in <style>, JS in <script> — zero npm, zero CDN
+- UI in Portuguese (PT-PT) — ALL text visible to user must be in Portuguese
+- Implement ALL features from [FEATURES] — every single one, fully working
+- Apply style from [DESIGN]: dark theme, glassmorphism, exact hex colors
+  * backdrop-filter: blur(12px); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)
+  * Use the exact accent color hex values from [DESIGN]
+- localStorage persistence — NEVER fetch('/api/...')
+- Realistic Portuguese data — never Lorem Ipsum
+- Minimum 200 lines of real working code
+- Start with <!DOCTYPE html> and end with </html>`;
 
 export async function generateWithGemini(
   prompt: string,
@@ -75,7 +56,7 @@ export async function generateWithGemini(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+      system_instruction: { parts: [{ text: HTML_SYSTEM_GEMINI }] },
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.3,
@@ -132,7 +113,6 @@ export async function generateWithGroq(
   apiKey: string,
   onChunk: (chunk: string) => void
 ): Promise<string> {
-  // Use JSON mode — forces structured output, eliminates token dropping by Llama
   const response = await fetch(GROQ_BASE, {
     method: 'POST',
     headers: {
@@ -142,7 +122,7 @@ export async function generateWithGroq(
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [
-        { role: 'system', content: GROQ_MARKER_SYSTEM },
+        { role: 'system', content: HTML_SYSTEM_GROQ },
         { role: 'user', content: prompt },
       ],
       temperature: 0,
@@ -175,254 +155,6 @@ export async function generateWithGroq(
         const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
         const text = parsed.choices?.[0]?.delta?.content ?? '';
         if (text) { fullText += text; onChunk(text); }
-      } catch { /* skip */ }
-    }
-  }
-
-  // Extract code between ===APP_START=== and ===APP_END=== markers
-  const markerMatch = fullText.match(/===APP_START===\r?\n([\s\S]*)\r?\n===APP_END===/);
-  if (markerMatch) {
-    // Strip any inner code fences the LLM may have added inside the markers
-    // e.g. ```typescript\n...code...\n``` → just the code
-    let code = markerMatch[1].trim();
-    code = code.replace(/^```[\w]*\r?\n/, '').replace(/\r?\n```$/, '');
-    if (code.length > 0) {
-      return '```typescript src/App.tsx\n' + code + '\n```';
-    }
-  }
-
-  // Fallback: if markers failed or empty, look for any code fence in raw output
-  const fenceMatch = fullText.match(/```(?:typescript|tsx|jsx?)?\r?\n([\s\S]+?)```/);
-  if (fenceMatch && fenceMatch[1].trim().length > 50) {
-    return '```typescript src/App.tsx\n' + fenceMatch[1].trim() + '\n```';
-  }
-
-  // Last resort: return raw output (CodeParser formats A-G will try to parse)
-  return fullText;
-}
-
-/**
- * Deterministic pre-processor — fixes common LLM output corruption before Groq validation.
- * These are regex-based fixes that never fail, unlike LLM-based validation.
- */
-export function preProcessCode(code: string): string {
-  // Fix: line missing "import" keyword — e.g. " { Search, Plus } from 'lucide-react'"
-  // Happens when LLM splits a multi-import line and drops the keyword on continuation lines
-  code = code.replace(/^([ \t]*)\{([^}]+)\}([ \t]+from[ \t]+['"][^'"]+['"])/gm,
-    '$1import {$2}$3');
-
-  // Fix: merged import lines — e.g. "import A from './x'import B from './y'"
-  code = code.replace(/(from\s+['"][^'"]+['"];?)\s*(import\s)/g, '$1\n$2');
-
-  // NOTE: Local imports are NOT removed here — multi-file Gemini output has valid local imports.
-  // Groq single-file path enforces no local imports via its system prompt instead.
-
-  // Fix: destructured const missing = — e.g. "const [x, setX] useState<T>(" → "const [x, setX] = useState<T>("
-  // Happens when LLM drops the assignment operator in hook declarations
-  code = code.replace(
-    /\bconst\s+(\[[^\]]+\])\s+([a-zA-Z_$][\w$]*\s*(?:<[^>]*>)?\s*\()/g,
-    'const $1 = $2'
-  );
-
-  // Fix: const declaration missing colon before type — e.g. "const App React.FC = () {"
-  code = code.replace(/\bconst\s+(\w+)\s+([A-Z][A-Za-z.]+)\s*=/g, 'const $1: $2 =');
-
-  // Fix: arrow function missing => — e.g. "= () {" or "= (x: T) {"
-  code = code.replace(/=\s*(\([^)]*\))\s*\{/g, '= $1 => {');
-
-  // Fix: truncated closing HTML tags — e.g. "</h>" → "</h1>", "</p" → "</p>"
-  code = code.replace(/<\/h>\s/g, '</h1> ');
-  code = code.replace(/<\/h>$/gm, '</h1>');
-
-  // Fix: truncated text content — lines ending mid-word before a tag
-  // Remove <Feature1 />, <Feature2 /> etc. — sub-components not allowed in single-file
-  code = code.replace(/<Feature\d+\s*\/>/g, '');
-  code = code.replace(/<[A-Z][a-zA-Z]+\d+\s*\/>/g, '');
-
-  // Fix: interface/object property missing name — e.g. "  : boolean;" → "  _field: boolean;"
-  code = code.replace(/^([ \t]+):\s+(\w)/gm, '$1_field: $2');
-
-  // Fix: import missing closing brace — e.g. "import { Search, Plus from 'lucide-react'"
-  code = code.replace(/import\s+\{([^}]+?)\s+from\s+(['"][^'"]+['"])/g,
-    (_m, specifiers, path) => `import { ${specifiers.trim()} } from ${path}`);
-
-  // Fix: interface without name — e.g. "interface {"
-  let ifaceCounter = 0;
-  code = code.replace(/\binterface\s+\{/g, () => `interface GeneratedType${++ifaceCounter} {`);
-
-  // Fix: type alias without name — e.g. "type = 'active' | 'done'"
-  code = code.replace(/\btype\s+=\s+/g, 'type GeneratedType = ');
-
-  return code;
-}
-
-/**
- * Dedicated syntax fixer — runs ALWAYS regardless of which LLM generated the code.
- * Focuses ONLY on syntax errors, never rewrites or improves logic.
- * Uses a short focused prompt to minimise token usage and latency.
- */
-export async function fixSyntaxWithGroq(
-  code: string,
-  apiKey: string,
-  onChunk: (chunk: string) => void
-): Promise<string> {
-  const fixPrompt = `You are a TypeScript syntax validator. Fix ONLY these syntax errors — do NOT rewrite, restructure, rename, or improve the code in any way:
-
-1. Destructured const missing =:   WRONG: const [x, setX] useState(   FIXED: const [x, setX] = useState(
-2. Interface/object property missing colon:   WRONG: name string;   FIXED: name: string;
-3. Arrow function missing =>:   WRONG: const fn = () {   FIXED: const fn = () => {
-4. Object property missing colon:   WRONG: { name 'João' }   FIXED: { name: 'João' }
-5. Missing export default at end of file — if absent, append: export default App;
-
-Return the COMPLETE file with ONLY the above fixes applied. Do not change anything else. Do not add comments. Do not truncate.
-
-FILE TO FIX:
-${code}`;
-
-  const response = await fetch(GROQ_BASE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'user', content: fixPrompt },
-      ],
-      temperature: 0,
-      max_tokens: 12000,
-      stream: true,
-    }),
-  });
-
-  if (!response.ok) {
-    // Non-fatal: if fixer fails, return original code unchanged
-    console.warn(`fixSyntaxWithGroq: API error ${response.status} — returning original code`);
-    return code;
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) return code;
-
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split('\n').filter(l => l.startsWith('data: '))) {
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
-        const text = parsed.choices?.[0]?.delta?.content ?? '';
-        if (text) { fullText += text; onChunk(text); }
-      } catch { /* skip */ }
-    }
-  }
-
-  // Extract code if wrapped in fence
-  const fenceMatch = fullText.match(/```(?:typescript|tsx|jsx?)?\r?\n([\s\S]+?)```/);
-  const result = fenceMatch ? fenceMatch[1].trim() : fullText.trim();
-
-  // Safety: if result is suspiciously short, return original
-  return result.length > 100 ? result : code;
-}
-
-export async function validateWithGroq(
-  generatedCode: string,
-  apiKey: string,
-  onChunk: (chunk: string) => void
-): Promise<string> {
-  const preProcessed = preProcessCode(generatedCode);
-  const validationPrompt = `You are a TypeScript compiler. Fix ALL syntax errors in this single-file React 19 + TypeScript app so it compiles with zero errors.
-
-This is ONE file: src/App.tsx. It must only import from 'react' or 'lucide-react'. No local imports.
-
-CHECK THESE PATTERNS IN ORDER:
-
-1. MERGED IMPORT LINES — most critical:
-   WRONG:  import A from './featuresimport B from './other'
-   FIXED:  (remove both — no local imports allowed. Keep only react/lucide-react imports)
-   Rule: ANY import from a local path ('./anything') MUST be removed entirely.
-
-2. INTERFACE/TYPE MISSING BRACE:
-   WRONG:  interface User  id: number;
-   FIXED:  interface User { id: number; }
-
-3. TYPE ALIAS MISSING EQUALS:
-   WRONG:  type Status  'active' | 'done'
-   FIXED:  type Status = 'active' | 'done'
-
-4. OBJECT/INTERFACE PROPERTY MISSING COLON:
-   WRONG:  { name 'John' }  or  name string; in interface
-   FIXED:  { name: 'John' }  or  name: string;
-
-5. JSX RETURN WRONG CLOSING:
-   WRONG:  return ( <div/> };
-   FIXED:  return ( <div/> );
-
-6. INCOMPLETE useState:
-   WRONG:  useState(''
-   FIXED:  useState('')
-
-7. MISSING export default:
-   The file MUST end with: export default function App() or export default App
-
-OUTPUT: Rewrite the complete fixed src/App.tsx in a single code block. Do not truncate.
-
-CODE TO VALIDATE AND FIX:
-${preProcessed}`;
-
-  const response = await fetch(GROQ_BASE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_INSTRUCTION },
-        { role: 'user', content: validationPrompt },
-      ],
-      temperature: 0.1,
-      max_tokens: 8192,
-      stream: true,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Groq API error ${response.status}`);
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('Stream Groq não disponível');
-
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
-
-    for (const line of lines) {
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(data) as {
-          choices?: Array<{ delta?: { content?: string } }>;
-        };
-        const text = parsed.choices?.[0]?.delta?.content ?? '';
-        if (text) {
-          fullText += text;
-          onChunk(text);
-        }
       } catch { /* skip */ }
     }
   }
