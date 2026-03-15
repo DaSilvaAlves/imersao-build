@@ -412,6 +412,7 @@ body {
 
 .preview-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 14px;
   border-top: 1px solid var(--color-border);
@@ -489,6 +490,38 @@ body {
 .btn-generate { width: 100%; padding: 12px; font-size: 0.9rem; }
 .btn-send     { flex: 1; }
 .btn-sm       { font-size: 0.75rem; }
+
+.btn-lovable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-lovable:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.btn-gemini {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-gemini:hover { opacity: 0.88; transform: translateY(-1px); }
 
 /* ================================================================
    SKILLS TOGGLE — Optional Skills Panel

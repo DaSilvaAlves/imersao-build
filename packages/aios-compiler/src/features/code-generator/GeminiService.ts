@@ -15,11 +15,47 @@ ABSOLUTE RULES:
 - Apply the visual style from [DESIGN] — dark backgrounds, glassmorphism, exact hex colors provided
 - localStorage for all persistence — NEVER use fetch('/api/...'), no backend exists
 - Realistic Portuguese example data — never Lorem Ipsum, never "Test", never "Example"
-- Minimum 200 lines of real working code
+- Minimum 300 lines of real working code
 
-GLASSMORPHISM PATTERN (use this):
+MANDATORY CSS BASE (always include this EXACTLY in your <style>, then build on top):
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; }
+input, textarea, select {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: #e5e5e5;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.35); }
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+button:hover { opacity: 0.88; }
+button:active { transform: scale(0.97); }
+button.secondary { background: rgba(255,255,255,0.08); color: #e5e5e5; }
+
+GLASSMORPHISM PATTERN (use for cards/panels):
   background: rgba(255,255,255,0.05); backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px;
+
+DESIGN VARIABLE (set from [DESIGN] accent color):
+  :root { --accent: #6366f1; } /* replace with exact hex from [DESIGN] */
 
 OUTPUT: Return only the complete index.html content, starting with <!DOCTYPE html>`;
 
@@ -47,9 +83,65 @@ ABSOLUTE RULES:
 - Apply ALL styles from [DESIGN] — colors, typography, spacing, exactly as specified
 - localStorage for all persistence — NEVER use fetch('/api/...')
 - Realistic Portuguese example data — never Lorem Ipsum
-- Minimum 200 lines of real working code
+- Minimum 300 lines of real working code
 - The output MUST start with <!DOCTYPE html> and end with </html>
-- Do NOT wrap the HTML in code fences inside the markers`;
+- Do NOT wrap the HTML in code fences inside the markers
+
+MANDATORY CSS BASE (copy this EXACTLY into your <style>, then extend it):
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; }
+:root { --accent: #6366f1; } /* REPLACE with exact hex from [DESIGN] */
+input, textarea, select {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: #e5e5e5;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.35); }
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+button:hover { opacity: 0.85; }
+button:active { transform: scale(0.97); }
+button.secondary { background: rgba(255,255,255,0.08); color: #e5e5e5; }
+.card { background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; }`;
+
+/**
+ * Strip React/TypeScript-specific sections from Optimizer-generated prompts.
+ * The Optimizer generates React prompts — we remove the conflicting sections
+ * in code (reliable) instead of relying on LLM instructions (unreliable).
+ *
+ * Kept:  [CONTEXT], [TARGET], [FEATURES], [DESIGN], [LANGUAGE], [PROJETO], [PÚBLICO]
+ * Removed: [ROLE], [FILES], [ARCHITECTURE], [RULES], [OUTPUT]
+ */
+export function sanitizePromptForHTML(prompt: string): string {
+  const STRIP_SECTIONS = ['ROLE', 'FILES', 'ARCHITECTURE', 'RULES', 'OUTPUT'];
+  let result = prompt;
+
+  for (const section of STRIP_SECTIONS) {
+    // Match [SECTION] header through the next [SECTION] header or end of string
+    const re = new RegExp(`\\[${section}\\][\\s\\S]*?(?=\\n\\[|$)`, 'gi');
+    result = result.replace(re, '');
+  }
+
+  return result.trim();
+}
 
 export async function generateWithGemini(
   prompt: string,
@@ -57,6 +149,7 @@ export async function generateWithGemini(
   onChunk: (chunk: string) => void,
   model: string = GEMINI_DEFAULT_MODEL
 ): Promise<string> {
+  const cleanPrompt = sanitizePromptForHTML(prompt);
   const url = `${GEMINI_BASE}/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
 
   const response = await fetch(url, {
@@ -64,7 +157,7 @@ export async function generateWithGemini(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: HTML_SYSTEM_GEMINI }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: cleanPrompt }] }],
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 8192,
@@ -120,6 +213,7 @@ export async function generateWithGroq(
   apiKey: string,
   onChunk: (chunk: string) => void
 ): Promise<string> {
+  const cleanPrompt = sanitizePromptForHTML(prompt);
   const response = await fetch(GROQ_BASE, {
     method: 'POST',
     headers: {
@@ -130,7 +224,7 @@ export async function generateWithGroq(
       model: GROQ_MODEL,
       messages: [
         { role: 'system', content: HTML_SYSTEM_GROQ },
-        { role: 'user', content: prompt },
+        { role: 'user', content: cleanPrompt },
       ],
       temperature: 0,
       max_tokens: 12000,

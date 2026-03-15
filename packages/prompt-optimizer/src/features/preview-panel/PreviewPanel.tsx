@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Send, Edit3, Eye, Zap, Target } from 'lucide-react';
+import { Copy, Check, Send, Edit3, Eye, Zap, Target, ExternalLink } from 'lucide-react';
 import type { GeneratedPrompt } from '../../types';
 
 interface Props {
@@ -98,6 +98,18 @@ export default function PreviewPanel({ prompt, onSendToCompiler }: Props) {
     onSendToCompiler(displayText);
   }
 
+  function handleOpenLovable() {
+    navigator.clipboard.writeText(displayText).then(() => {
+      window.open('https://lovable.dev', '_blank');
+    });
+  }
+
+  function handleOpenGemini() {
+    navigator.clipboard.writeText(displayText).then(() => {
+      window.open('https://aistudio.google.com/app/prompts/new_chat', '_blank');
+    });
+  }
+
   const boost = prompt.detectedBoost;
 
   return (
@@ -155,6 +167,14 @@ export default function PreviewPanel({ prompt, onSendToCompiler }: Props) {
         <button className="btn-secondary" onClick={handleCopy}>
           {copied ? <Check size={16} /> : <Copy size={16} />}
           {copied ? 'Copiado!' : 'Copiar prompt'}
+        </button>
+        <button className="btn-lovable" onClick={handleOpenLovable}>
+          <ExternalLink size={16} />
+          Abrir no Lovable
+        </button>
+        <button className="btn-gemini" onClick={handleOpenGemini}>
+          <ExternalLink size={16} />
+          Abrir no Gemini AI
         </button>
         <button className="btn-primary btn-send" onClick={handleSend}>
           <Send size={16} />
