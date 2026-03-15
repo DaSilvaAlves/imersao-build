@@ -252,15 +252,16 @@ export async function pushAllFiles(
   // e.g. "App.tsx" → "src/App.tsx", "components/Header.tsx" → "src/components/Header.tsx"
   const SRC_EXTS = new Set(['tsx', 'ts', 'css', 'scss', 'jsx', 'js']);
   const normalizedFiles = files.map(f => {
-    const name = f.filename;
+    // Strip leading slashes — LLM sometimes generates "/main.tsx" → "src//main.tsx" without this
+    const name = f.filename.replace(/^\/+/, '').replace(/\/\//g, '/');
     // Already correct prefix — leave untouched
-    if (name.startsWith('src/') || name.startsWith('public/')) return f;
+    if (name.startsWith('src/') || name.startsWith('public/')) return { ...f, filename: name };
     // Add src/ to any source file regardless of nesting depth
     const ext = name.split('.').pop()?.toLowerCase() ?? '';
     if (SRC_EXTS.has(ext)) {
       return { ...f, filename: `src/${name}` };
     }
-    return f;
+    return { ...f, filename: name };
   });
 
   // Critical files always come from scaffold — AI output NEVER overrides these
