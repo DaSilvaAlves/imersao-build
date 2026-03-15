@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Wrench, Key, Zap, FolderOpen, Github, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import FileViewer from './features/file-viewer/FileViewer';
-import { generateWithGemini, generateWithGroq, validateWithGroq, preProcessCode, GEMINI_DEFAULT_MODEL } from './features/code-generator/GeminiService';
+import { generateWithGemini, generateWithGroq, validateWithGroq, fixSyntaxWithGroq, preProcessCode, GEMINI_DEFAULT_MODEL } from './features/code-generator/GeminiService';
 import { parseGeneratedFiles, sortFiles } from './features/code-generator/CodeParser';
 import {
   getAuthenticatedUser,
@@ -74,7 +74,7 @@ export default function App() {
   }
 
   const handleGenerate = useCallback(async () => {
-    const activeProvider = state.config.aiProvider ?? 'gemini';
+    const activeProvider = state.config.aiProvider ?? 'groq';
     const requiredKey = activeProvider === 'groq' ? state.config.groqApiKey : state.config.geminiApiKey;
     if (!requiredKey || !state.prompt) return;
     update({ isLoading: true, error: null, streamingOutput: '', step: 3 });
@@ -97,7 +97,7 @@ export default function App() {
       };
 
       // Pass 1: Generate (Gemini or Groq/Llama)
-      if ((state.config.aiProvider ?? 'gemini') === 'groq') {
+      if ((state.config.aiProvider ?? 'groq') === 'groq') {
         if (!state.config.groqApiKey) throw new Error('Chave Groq em falta — preenche em Configuração.');
         rawOutput = await generateWithGroq(state.prompt, state.config.groqApiKey, onChunk);
       } else {
@@ -107,7 +107,7 @@ export default function App() {
 
       // Pass 2: Groq validation — only when Gemini was used for generation
       // (Groq validating its own output degrades quality and introduces new errors)
-      const usedGroq = (state.config.aiProvider ?? 'gemini') === 'groq';
+      const usedGroq = (state.config.aiProvider ?? 'groq') === 'groq';
       let finalOutput = rawOutput;
       if (!usedGroq && state.config.groqApiKey) {
         setState(s => ({
@@ -122,8 +122,23 @@ export default function App() {
         finalOutput = await validateWithGroq(rawOutput, state.config.groqApiKey, onGroqChunk);
       }
 
-      // Always run deterministic pre-processor on final output — regardless of Groq
+      // Always run deterministic pre-processor on final output — regardless of LLM used
       finalOutput = preProcessCode(finalOutput);
+
+      // Always run dedicated syntax fixer if Groq key available — catches [x,y]=hook() errors
+      if (state.config.groqApiKey) {
+        setState(s => ({
+          ...s,
+          streamingOutput: s.streamingOutput + '\n\n--- 🔧 A corrigir sintaxe... ---\n\n',
+        }));
+        let fixOutput = '';
+        const onFixChunk = (c: string) => {
+          fixOutput += c;
+          setState(s => ({ ...s, streamingOutput: s.streamingOutput + c }));
+        };
+        finalOutput = await fixSyntaxWithGroq(finalOutput, state.config.groqApiKey, onFixChunk);
+      }
+
       const parsedFiles = sortFiles(parseGeneratedFiles(finalOutput));
       const result: GenerationResult = {
         rawOutput: finalOutput,
@@ -279,14 +294,14 @@ export default function App() {
                 <h3>🤖 Motor de IA (Obrigatório)</h3>
                 <select
                   className="config-input"
-                  value={config.aiProvider ?? 'gemini'}
+                  value={config.aiProvider ?? 'groq'}
                   onChange={e => saveConfig({ ...config, aiProvider: e.target.value as import('./types').AiProvider })}
                 >
                   <option value="groq">🦙 Groq / Llama 3.3 70B — GRATUITO (recomendado)</option>
                   <option value="gemini">✨ Google Gemini</option>
                 </select>
 
-                {(config.aiProvider ?? 'gemini') === 'groq' ? (
+                {(config.aiProvider ?? 'groq') === 'groq' ? (
                   <>
                     <p className="config-hint" style={{ marginTop: 8 }}>
                       Chave gratuita em{' '}

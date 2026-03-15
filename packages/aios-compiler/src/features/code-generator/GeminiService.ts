@@ -217,6 +217,13 @@ export function preProcessCode(code: string): string {
   // NOTE: Local imports are NOT removed here — multi-file Gemini output has valid local imports.
   // Groq single-file path enforces no local imports via its system prompt instead.
 
+  // Fix: destructured const missing = — e.g. "const [x, setX] useState<T>(" → "const [x, setX] = useState<T>("
+  // Happens when LLM drops the assignment operator in hook declarations
+  code = code.replace(
+    /\bconst\s+(\[[^\]]+\])\s+([a-zA-Z_$][\w$]*\s*(?:<[^>]*>)?\s*\()/g,
+    'const $1 = $2'
+  );
+
   // Fix: const declaration missing colon before type — e.g. "const App React.FC = () {"
   code = code.replace(/\bconst\s+(\w+)\s+([A-Z][A-Za-z.]+)\s*=/g, 'const $1: $2 =');
 
@@ -247,6 +254,81 @@ export function preProcessCode(code: string): string {
   code = code.replace(/\btype\s+=\s+/g, 'type GeneratedType = ');
 
   return code;
+}
+
+/**
+ * Dedicated syntax fixer — runs ALWAYS regardless of which LLM generated the code.
+ * Focuses ONLY on syntax errors, never rewrites or improves logic.
+ * Uses a short focused prompt to minimise token usage and latency.
+ */
+export async function fixSyntaxWithGroq(
+  code: string,
+  apiKey: string,
+  onChunk: (chunk: string) => void
+): Promise<string> {
+  const fixPrompt = `You are a TypeScript syntax validator. Fix ONLY these syntax errors — do NOT rewrite, restructure, rename, or improve the code in any way:
+
+1. Destructured const missing =:   WRONG: const [x, setX] useState(   FIXED: const [x, setX] = useState(
+2. Interface/object property missing colon:   WRONG: name string;   FIXED: name: string;
+3. Arrow function missing =>:   WRONG: const fn = () {   FIXED: const fn = () => {
+4. Object property missing colon:   WRONG: { name 'João' }   FIXED: { name: 'João' }
+5. Missing export default at end of file — if absent, append: export default App;
+
+Return the COMPLETE file with ONLY the above fixes applied. Do not change anything else. Do not add comments. Do not truncate.
+
+FILE TO FIX:
+${code}`;
+
+  const response = await fetch(GROQ_BASE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'user', content: fixPrompt },
+      ],
+      temperature: 0,
+      max_tokens: 12000,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    // Non-fatal: if fixer fails, return original code unchanged
+    console.warn(`fixSyntaxWithGroq: API error ${response.status} — returning original code`);
+    return code;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) return code;
+
+  const decoder = new TextDecoder();
+  let fullText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n').filter(l => l.startsWith('data: '))) {
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> };
+        const text = parsed.choices?.[0]?.delta?.content ?? '';
+        if (text) { fullText += text; onChunk(text); }
+      } catch { /* skip */ }
+    }
+  }
+
+  // Extract code if wrapped in fence
+  const fenceMatch = fullText.match(/```(?:typescript|tsx|jsx?)?\r?\n([\s\S]+?)```/);
+  const result = fenceMatch ? fenceMatch[1].trim() : fullText.trim();
+
+  // Safety: if result is suspiciously short, return original
+  return result.length > 100 ? result : code;
 }
 
 export async function validateWithGroq(
