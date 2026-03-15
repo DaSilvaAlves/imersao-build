@@ -563,5 +563,149 @@ graph LR
 
 ---
 
-*PRD criado sob orientação de Eurico Alves — Mentor da Imersão IA Portugal*  
+---
+
+## 12. REGISTO DE BUGS CRÍTICOS — CAUSA RAIZ CONFIRMADA
+
+> **Secção criada em:** 15/03/2026
+> **Registado por:** Quinn (QA Agent) durante sessão de testes E2E
+> **Autoridade:** Este registo é PERMANENTE e deve ser consultado antes de qualquer trabalho no AIOS Compiler ou Prompt Optimizer.
+
+---
+
+### BUG-001 — Conflito Arquitectural: Prompt Optimizer vs GeminiService
+
+**Estado:** 🔴 CRÍTICO — NÃO RESOLVIDO
+**Detectado em:** 15/03/2026 após 18 dias de loop
+**Ficheiro:** `imersao-build/packages/aios-compiler/src/features/code-generator/GeminiService.ts`
+
+#### Descrição do Problema
+
+Durante 18 dias consecutivos, o pipeline chegava à fase de geração de código com erros de sintaxe no App.tsx. A resposta habitual era corrigir o código **gerado** (o projecto de teste) e avançar. O AIOS Compiler ficava sempre com o mesmo bug. O ciclo repetia-se.
+
+**O problema real nunca foi o código gerado. Foi um conflito arquitectural entre duas ferramentas que nunca foram alinhadas.**
+
+#### Causa Raiz — Diagrama do Conflito
+
+```
+Prompt Optimizer (porta 5193)          GeminiService.ts (AIOS Compiler)
+─────────────────────────────          ────────────────────────────────
+Gera prompt com [FILES]:               SYSTEM_INSTRUCTION diz:
+  - src/App.tsx                          RULE 1: ONE FILE ONLY
+  - src/styles/theme.css                 RULE 2: NO LOCAL IMPORTS
+  - src/features/feature-1/index.tsx     "Only import from 'react' or
+  - src/features/feature-2/index.tsx      'lucide-react'. Never from
+  - src/features/feature-3/index.tsx      './anything'."
+  - src/components/ui/Button.tsx
+  - src/types/index.ts
+
+         ↓                                        ↓
+   "Gera 9 ficheiros                      "Gera 1 ficheiro,
+    com imports entre eles"                sem imports locais"
+
+                    ↓ LLM recebe AMBOS ↓
+
+               RESULTADO: App.tsx com
+               import Feature1 from './features/feature-1'
+               que viola a sua própria regra → SINTAXE PARTIDA
+```
+
+#### Evidência — App.tsx Gerado (15/03/2026)
+
+```tsx
+// ERROS PRODUZIDOS PELO CONFLITO:
+import Feature3 './features/feature-3';    // falta "from" — LLM confuso
+const App () => {                           // falta "=" — LLM confuso
+const [projects, set] = useState([]);      // nome errado
+const fetchInvoices = async () =>          // falta "{"
+fetch('/api/invoices')                     // API backend inexistente
+<h1>App de Gestão de Free                  // JSX truncado
+```
+
+#### O Que ERA Feito (Errado)
+
+1. Código gerado tem erros → corrigir o código gerado manualmente
+2. Fazer push do projecto de teste corrigido
+3. Pipeline "passa" para esse teste específico
+4. Na próxima sessão: Prompt Optimizer gera o mesmo prompt multi-ficheiro
+5. GeminiService aplica o mesmo system prompt single-file
+6. Mesmo conflito → mesmo erro → repetir desde o passo 1
+7. **18 dias no mesmo ciclo**
+
+#### O Que Deve SER Feito (Fix Real)
+
+**Opção A — Fix no GeminiService.ts (RECOMENDADO):**
+
+Remover RULE 1 e RULE 2 do `SYSTEM_INSTRUCTION` (linha 11-12).
+O prompt do Optimizer já define a arquitectura — o system prompt não deve contradizê-la.
+
+```typescript
+// REMOVER do SYSTEM_INSTRUCTION:
+// RULE 1 — ONE FILE ONLY: Generate exactly one file: src/App.tsx.
+// RULE 2 — NO LOCAL IMPORTS: Only import from 'react' or 'lucide-react'.
+
+// MANTER:
+// RULE 3 — IMPLEMENT EVERYTHING
+// RULE 4 — PORTUGUESE UI
+// RULE 5 — APPLY THE DESIGN
+// RULE 6 — REAL DATA
+// RULE 7 — LOCALSTORAGE
+```
+
+Fazer o mesmo no `GROQ_MARKER_SYSTEM` (linha 28): remover "All types, state, components, and styles in ONE file" e "Only import from 'react' or 'lucide-react'".
+
+**Opção B — Fix no Prompt Optimizer:**
+
+Mudar a secção [FILES] para gerar sempre apenas `src/App.tsx` (single-file), alinhando com o que o GeminiService espera. Mais simples mas limita a arquitectura dos projectos gerados.
+
+#### Impacto Previsto do Fix
+
+| Antes do Fix | Depois do Fix |
+|---|---|
+| LLM recebe instruções contraditórias | LLM recebe uma única arquitectura clara |
+| App.tsx com imports locais inválidos | App.tsx sem imports locais (single-file) |
+| Syntax errors em 80%+ das gerações | Syntax errors eliminados estruturalmente |
+| QA/mentor corrige manualmente | Pipeline funciona de forma autónoma |
+
+#### Comando AIOX para Implementar
+
+```
+@dev
+
+Fix GeminiService.ts:
+- Remover RULE 1 (ONE FILE ONLY) do SYSTEM_INSTRUCTION
+- Remover RULE 2 (NO LOCAL IMPORTS) do SYSTEM_INSTRUCTION
+- Remover "ONE file" do GROQ_MARKER_SYSTEM
+- Remover "Only import from 'react' or 'lucide-react'" do GROQ_MARKER_SYSTEM
+Ficheiro: imersao-build/packages/aios-compiler/src/features/code-generator/GeminiService.ts
+```
+
+#### Nota do Mentor (Eurico Alves — 15/03/2026)
+
+> "Andámos 18 dias a corrigir o mesmo erro. Sempre que chegávamos à fase de detecção do erro, corrigíamos o projecto de teste. O verdadeiro erro — o conflito entre o Optimizer e o Compiler — nunca foi tocado. Este registo existe para garantir que esta situação não se repita. Quem trabalhar neste pipeline deve ler esta secção primeiro."
+
+---
+
+### BUG-002 — HANDOFF com Nomes de Tabelas Incorrectos
+
+**Estado:** 🟡 MENOR — Documentação desactualizada
+**Detectado em:** 15/03/2026
+**Ficheiro afectado:** `HANDOFF_E2E_15032026.md`
+
+| Campo | HANDOFF diz | Código real diz |
+|---|---|---|
+| Tabela Supabase | `briefing_outputs` | `briefings` (`supabaseClient.ts:21`) |
+| URL partilhável | `?projectId=<ID>` | `?load-briefing=<ID>` (`App.tsx:87`) |
+| Parâmetro Optimizer | `?tokens=<encoded>` | `?briefing=<encoded>` (`App.tsx:351`) |
+
+**Fix:** Actualizar HANDOFF e documentação do pipeline com os nomes correctos.
+
+---
+
+*Secção adicionada por Quinn (QA Agent) — Imersão IA Portugal*
+*Revisão obrigatória antes de qualquer trabalho no AIOS Compiler ou Prompt Optimizer*
+
+---
+
+*PRD criado sob orientação de Eurico Alves — Mentor da Imersão IA Portugal*
 *Gerado por Atlas (Analyst) do ecossistema AIOS*

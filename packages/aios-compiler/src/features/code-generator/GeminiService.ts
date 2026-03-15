@@ -8,13 +8,12 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
 // Used for Gemini generation
 const SYSTEM_INSTRUCTION = `You are a Senior React 19 + TypeScript developer and UI designer. Generate a COMPLETE, FULLY FUNCTIONAL app — not a skeleton, not a placeholder.
 
-RULE 1 — ONE FILE ONLY: Generate exactly one file: src/App.tsx. All types, state, components, and styles in one file.
-RULE 2 — NO LOCAL IMPORTS: Only import from 'react' or 'lucide-react'. Never from './anything'.
-RULE 3 — IMPLEMENT EVERYTHING: Every feature in [FEATURES] must be fully working — no placeholders, no TODOs.
-RULE 4 — PORTUGUESE UI: All visible text, labels, buttons, placeholders in Portuguese (PT-PT).
-RULE 5 — APPLY THE DESIGN: Use JavaScript style objects matching the [DESIGN] colors, glassmorphism, dark theme.
-RULE 6 — REAL DATA: Use realistic Portuguese example data. Never Lorem Ipsum.
-RULE 7 — LOCALSTORAGE: Persist state to localStorage and load on mount.
+RULE 1 — IMPLEMENT EVERYTHING: Every feature in [FEATURES] must be fully working — no placeholders, no TODOs.
+RULE 2 — PORTUGUESE UI: All visible text, labels, buttons, placeholders in Portuguese (PT-PT).
+RULE 3 — APPLY THE DESIGN: Use JavaScript style objects matching the [DESIGN] colors, glassmorphism, dark theme.
+RULE 4 — REAL DATA: Use realistic Portuguese example data. Never Lorem Ipsum.
+RULE 5 — LOCALSTORAGE: Persist state to localStorage and load on mount. Never call fetch('/api/...') — no backend exists.
+RULE 6 — FOLLOW [FILES]: Generate exactly the files listed in [FILES]. Use local imports between them as needed.
 
 OUTPUT FORMAT:
 \`\`\`typescript src/App.tsx
@@ -34,10 +33,10 @@ Output the complete src/App.tsx between these exact markers:
 ===APP_END===
 
 ABSOLUTE RULES (breaking these causes build failure):
-- Only import from 'react' or 'lucide-react' — never from './anything'
-- All types, state, components, and styles in ONE file
-- Use JavaScript style objects for CSS (const styles = { ... }) — no CSS file imports
+- Follow the [FILES] list exactly — generate every file listed, with correct local imports between them
+- Use JavaScript style objects for CSS when no theme.css is listed; use CSS file imports when theme.css IS listed
 - Must end with: export default function App() { ... }
+- NEVER call fetch('/api/...') — no backend exists. Use localStorage for all persistence.
 - Every interface must have braces: interface Name { field: type; }
 - Every arrow function must have =>: const fn = () => { ... }
 - Every object property must have colon: { key: value }
