@@ -11,6 +11,7 @@ import {
 } from './features/github-pusher/GitHubService';
 import type { CompilerState, CompilerStep, GenerationResult } from './types';
 import { saveProject } from './lib/supabase';
+import PipelineNav from './components/PipelineNav';
 
 // KNOWN LIMITATION (SEC-02): API keys (Groq, Gemini, GitHub token) are stored in
 // localStorage without encryption. This is acceptable for a workshop tool where keys
@@ -516,6 +517,7 @@ export default function App() {
           </div>
         )}
       </main>
+      <PipelineNav />
     </div>
   );
 }

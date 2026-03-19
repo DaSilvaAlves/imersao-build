@@ -5,6 +5,7 @@ import PreviewPanel from './features/preview-panel/PreviewPanel';
 import { detectBoost, buildPrompt } from './features/prompt-builder/PromptBuilder';
 import type { BriefingOutput, DesignTokens, GeneratedPrompt, OptionalSkillId } from './types';
 import { saveBriefingOutput } from './lib/supabase';
+import PipelineNav from './components/PipelineNav';
 
 const COMPILER_URL = 'http://localhost:5194';
 
@@ -131,6 +132,7 @@ export default function App() {
           <PreviewPanel prompt={prompt} onSendToCompiler={handleSendToCompiler} />
         </div>
       </main>
+      <PipelineNav />
     </div>
   );
 }
