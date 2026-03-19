@@ -12,6 +12,10 @@ import {
 import type { CompilerState, CompilerStep, GenerationResult } from './types';
 import { saveProject } from './lib/supabase';
 
+// KNOWN LIMITATION (SEC-02): API keys (Groq, Gemini, GitHub token) are stored in
+// localStorage without encryption. This is acceptable for a workshop tool where keys
+// are user-provided and session-scoped. For production use, consider server-side
+// key management or encrypted storage.
 const STORAGE_KEY = 'aios_compiler_config';
 const VERCEL_IMPORT_URL = 'https://vercel.com/import/git?s=';
 
