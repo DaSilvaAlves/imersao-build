@@ -10,7 +10,7 @@ import {
   generateRepoName,
 } from './features/github-pusher/GitHubService';
 import type { CompilerState, CompilerStep, GenerationResult } from './types';
-import { saveProject } from './lib/supabase';
+import { saveProject, updatePipelineProgress } from './lib/supabase';
 import PipelineNav from './components/PipelineNav';
 
 // KNOWN LIMITATION (SEC-02): API keys (Groq, Gemini, GitHub token) are stored in
@@ -48,6 +48,10 @@ export default function App() {
   });
 
   const [pushProgress, setPushProgress] = useState({ done: 0, total: 0, current: '' });
+  const [studentEmail] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('email') || '';
+  });
   const [githubUser, setGithubUser] = useState<{ login: string } | null>(null);
 
   // Read prompt from URL params (pipeline integration)
@@ -166,6 +170,11 @@ export default function App() {
         status: 'deployed',
         imersao_num: 1,
       });
+
+      // Pipeline progress tracking
+      if (studentEmail) {
+        void updatePipelineProgress(studentEmail, 5, { github_repo: repo.htmlUrl });
+      }
 
       update({ pushResult, isLoading: false });
     } catch (e) {
@@ -517,7 +526,7 @@ export default function App() {
           </div>
         )}
       </main>
-      <PipelineNav />
+      <PipelineNav email={studentEmail} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import InputPanel from './features/input-panel/InputPanel';
 import PreviewPanel from './features/preview-panel/PreviewPanel';
 import { detectBoost, buildPrompt } from './features/prompt-builder/PromptBuilder';
 import type { BriefingOutput, DesignTokens, GeneratedPrompt, OptionalSkillId } from './types';
-import { saveBriefingOutput } from './lib/supabase';
+import { saveBriefingOutput, updatePipelineProgress } from './lib/supabase';
 import PipelineNav from './components/PipelineNav';
 
 const COMPILER_URL = 'http://localhost:5194';
@@ -17,6 +17,10 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'input' | 'preview'>('input');
+  const [studentEmail] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('email') || '';
+  });
 
   // Read URL params on mount (pipeline integration)
   useEffect(() => {
@@ -64,12 +68,17 @@ export default function App() {
       setActivePanel('preview');
       // Persist to Supabase (fire-and-forget)
       void saveBriefingOutput(briefing, tokens);
+      // Pipeline progress tracking
+      if (studentEmail) {
+        void updatePipelineProgress(studentEmail, 4);
+      }
     }, 600);
   }, [briefing, tokens, activeSkills]);
 
   function handleSendToCompiler(text: string) {
     const encoded = encodeURIComponent(text);
-    const url = `${COMPILER_URL}?prompt=${encoded}`;
+    const emailParam = studentEmail ? `&email=${encodeURIComponent(studentEmail)}` : '';
+    const url = `${COMPILER_URL}?prompt=${encoded}${emailParam}`;
     window.open(url, '_blank');
   }
 
@@ -132,7 +141,7 @@ export default function App() {
           <PreviewPanel prompt={prompt} onSendToCompiler={handleSendToCompiler} />
         </div>
       </main>
-      <PipelineNav />
+      <PipelineNav email={studentEmail} />
     </div>
   );
 }
